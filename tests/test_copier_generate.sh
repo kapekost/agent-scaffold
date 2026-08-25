@@ -78,11 +78,12 @@ assert_contains ".claude/commands/orchestrate.md" "review-feedback"
 assert_contains ".claude/commands/orchestrate.md" "never auto-merge"
 
 # Full-tree sanity: every file under template/ must appear in the
-# generated output with its .jinja suffix stripped, and nothing else
-# but Copier's own .copier-answers.yml (which it writes automatically
-# and is not part of template/).
+# generated output with its .jinja suffix stripped, and nothing else.
+# template/{{ _copier_conf.answers_file }}.jinja renders to
+# .copier-answers.yml, so that file is counted on both sides — no
+# exclusion needed.
 expected_count="$(find "$root/template" -type f | wc -l | tr -d ' ')"
-actual_count="$(find "$tmp" -type f -not -path '*/.git/*' -not -name '.copier-answers.yml' | wc -l | tr -d ' ')"
+actual_count="$(find "$tmp" -type f -not -path '*/.git/*' | wc -l | tr -d ' ')"
 if [[ "$expected_count" != "$actual_count" ]]; then
   echo "FAIL: expected $expected_count generated files, got $actual_count" >&2
   fail=1

@@ -31,19 +31,9 @@ copier copy --defaults --trust \
   "$template_copy" "$dest"
 
 fail=0
-
-# Copier should create .copier-answers.yml, but if it doesn't, create it manually
-# (this is a test invocation fix, not a template bug).
 if [[ ! -f "$dest/.copier-answers.yml" ]]; then
-  cat > "$dest/.copier-answers.yml" << ANSWERS_EOF
-_src_path: $template_copy
-_commit: $(git -C "$template_copy" rev-parse HEAD)
-project_name: Update Test
-project_slug: update-test
-description: ""
-github_owner: testowner
-default_branch: main
-ANSWERS_EOF
+  echo "FAIL: .copier-answers.yml was not written" >&2
+  fail=1
 fi
 
 # 3. Change the template (simulate a template-level improvement) and commit.
