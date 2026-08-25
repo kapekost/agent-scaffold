@@ -9,8 +9,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Copier renders this file as Jinja; {% raw %} stops it from parsing
-  # GitHub Actions' own {{ }} syntax as a Jinja expression.
+  # Copier renders this file as Jinja. The value below wraps GitHub
+  # Actions' own double-curly-brace syntax in a Jinja "raw" block so
+  # Copier doesn't try to parse it as a template expression.
   group: ci-{% raw %}${{ github.ref }}{% endraw %}
   cancel-in-progress: true
 
@@ -19,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Install PyYAML
+        run: pip install --quiet pyyaml
 
       - name: Validate YAML config files
         run: |

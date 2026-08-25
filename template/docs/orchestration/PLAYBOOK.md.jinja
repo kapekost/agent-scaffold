@@ -14,6 +14,18 @@
   automatically at the end of any tick that logged a new `IMPROVEMENTS.md` entry.
 - `/orchestrate stop` — set `STATE.md` → Stop-condition to "owner stop", commit, stop.
 
+## Triage / INVEST gate
+Before an Issue gets the `ready` label, it must pass a basic INVEST sanity check (Independent,
+Negotiable, Valuable, Estimable, Small, Testable — see the `feature` issue form). If it clearly
+fails — too vague, too large for its stated effort, or not independently actionable — label it
+`needs-clarification` instead of `ready` and stop; do not guess at intent.
+
+Issue dependencies (`blocked-by`) are tracked via GitHub's native issue-dependency relationship,
+not a label: set it through the Issue UI's "Blockers" panel, since there is no plain `gh issue`
+subcommand for it (it's a GraphQL-only feature, reachable via `gh api graphql` if scripting it
+later). Until that's automated, check an Issue's blocked status by reading its "Blocked by" panel
+in the UI (or `gh api graphql` for the same data) before treating it as pickable in step 3 below.
+
 ## The tick (for `/orchestrate` with no arg)
 1. **Read** `STATE.md`, `GUARDRAILS.md`, `DECISIONS.md`. Do not read source files yet.
 2. **Reconcile reality:** `git status`, `gh pr list`, `gh issue list --label ready --state open`
@@ -29,6 +41,9 @@
 4. **Execute** via `superpowers:subagent-driven-development`. Lean: dispatch one subagent per task; it
    reads only the Issue + its plan doc + the named files, never the whole tree. If context bloats
    mid-task per GUARDRAILS, checkpoint and hand off to a fresh subagent rather than pushing through.
+   Tell the subagent to log friction as it goes: whenever it hits something worth noting (a wrong
+   guardrail, a missing tool, an outdated doc), run
+   `scripts/append_improvement.sh <local|template|unsure> "<note>"` inline rather than waiting.
 5. **Gate:** run the task's verification commands; then `superpowers:requesting-code-review` (spec +
    code quality). At a deploy/milestone checkpoint, also run `/security-review`.
 6. **PR:** open a PR referencing the Issue (`Closes #N`), then wait for CI; treat a red CI as a hard

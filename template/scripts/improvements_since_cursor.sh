@@ -5,7 +5,7 @@ set -euo pipefail
 
 file="$(git rev-parse --show-toplevel)/docs/orchestration/IMPROVEMENTS.md"
 
-cursor="$(grep -o 'last-reviewed-count: [0-9]*' "$file" | grep -o '[0-9]*')"
+cursor="$(grep -o '<!-- last-reviewed-count: [0-9]* -->' "$file" | head -1 | grep -o '[0-9]*')"
 
 # Use awk to extract log entries and print only those after cursor position
 awk -v cursor="$cursor" '

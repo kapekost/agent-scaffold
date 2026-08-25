@@ -92,6 +92,19 @@ fi
 assert_file ".copier-answers.yml"
 assert_contains ".copier-answers.yml" "_src_path"
 
+# No leftover Jinja syntax should survive rendering anywhere in the output
+# tree. GitHub Actions' own ${{ ... }} expressions are legitimate and must
+# not trip this check; a bare {{ ... }} (no leading $) or any {% ... %} tag
+# means a .jinja file failed to render or a raw block leaked.
+if grep -rn '{%' "$tmp" --include='*' 2>/dev/null | grep -v '/.copier-answers.yml:'; then
+  echo "FAIL: unrendered Jinja tag syntax ({% %}) found in generated output" >&2
+  fail=1
+fi
+if grep -rn '{{' "$tmp" --include='*' 2>/dev/null | grep -vF '${{' | grep -v '/.copier-answers.yml:'; then
+  echo "FAIL: unrendered Jinja expression syntax ({{ }}) found in generated output" >&2
+  fail=1
+fi
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else

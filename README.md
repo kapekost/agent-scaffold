@@ -28,6 +28,11 @@ ran `copier copy`) against the template's current state and applies
 changes as a local, reviewable diff. Conflicts are never auto-resolved —
 resolve them by hand, same as any merge conflict.
 
+Note: if this template repo has any git tags, `copier update` tracks the
+latest tag, not the `main` branch tip. Until this project has a
+documented tagging convention, avoid tagging `project-template`, or use
+`copier update --vcs-ref=HEAD` to force tracking the branch tip instead.
+
 ## Applying labels
 
 After creating or updating a project, sync its GitHub labels once:

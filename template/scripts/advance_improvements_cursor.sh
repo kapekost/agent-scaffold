@@ -12,5 +12,5 @@ fi
 
 file="$(git rev-parse --show-toplevel)/docs/orchestration/IMPROVEMENTS.md"
 
-sed -i.bak -E "s/last-reviewed-count: [0-9]+/last-reviewed-count: ${new_count}/" "$file"
+sed -i.bak -E "s/(<!-- last-reviewed-count: )[0-9]+( -->)/\1${new_count}\2/" "$file"
 rm -f "${file}.bak"
