@@ -72,6 +72,11 @@ if grep -Eq '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,})' "$tmp/.mcp.json.example
   fail=1
 fi
 
+assert_file ".claude/commands/orchestrate.md"
+assert_contains ".claude/commands/orchestrate.md" "You are the Test Project orchestration controller."
+assert_contains ".claude/commands/orchestrate.md" "review-feedback"
+assert_contains ".claude/commands/orchestrate.md" "never auto-merge"
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else

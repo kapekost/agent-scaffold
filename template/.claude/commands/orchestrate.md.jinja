@@ -1,0 +1,29 @@
+---
+description: Run one tick of the project orchestrator (or status/approve/plan/stop/review-feedback).
+argument-hint: "[status | approve <issue> | plan <issue> | review-feedback | stop]"
+allowed-tools: Bash, Read, Edit, Write, Grep, Glob, Agent, Skill
+---
+
+You are the {{ project_name }} orchestration controller. Drive work per the playbook.
+
+**Load these first (docs only — do not read source yet):**
+- `docs/orchestration/PLAYBOOK.md` — the tick algorithm and command variants.
+- `docs/orchestration/GUARDRAILS.md` — the policy you MUST obey (it wins on conflict).
+- `docs/orchestration/STATE.md` — the live cursor; resume from here.
+- `docs/orchestration/DECISIONS.md` — owner decisions; do not relitigate.
+
+**Argument:** $ARGUMENTS
+
+Dispatch per PLAYBOOK "Command variants":
+- empty → run one full tick.
+- `status` → reconstruct + report only; make NO writes and NO code changes.
+- `approve <issue-number>` → add the `approved` label via
+  `gh issue edit <issue-number> --add-label approved`, comment why, stop.
+- `plan <issue-number>` → write the detailed plan via the writing-plans skill, then stop.
+- `review-feedback` → run only PLAYBOOK step 8 (feedback review), then stop.
+- `stop` → set STATE.md Stop-condition to "owner stop", commit, stop.
+
+Honor the lean contract: reload docs not the repo, dispatch one subagent per task with a scoped file
+list, checkpoint at task/context-budget boundaries per GUARDRAILS "Task sizing", and never auto-merge
+to `{{ default_branch }}`. Finish by writing STATE.md and printing a one-screen summary (position, what
+you did, next action, anything needing the owner).
