@@ -1,0 +1,11 @@
+name: Chore
+description: Maintenance work with no behavior change.
+title: "[chore]: "
+labels: ["type:chore"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs doing, and why now?
+    validations:
+      required: true

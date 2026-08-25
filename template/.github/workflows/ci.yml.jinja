@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [{{ default_branch }}]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Copier renders this file as Jinja; {% raw %} stops it from parsing
+  # GitHub Actions' own {{ }} syntax as a Jinja expression.
+  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  cancel-in-progress: true
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate YAML config files
+        run: |
+          for f in .github/labels.yml .github/dependabot.yml; do
+            python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f"
+          done
+
+      - name: Check for committed secrets in .mcp.json
+        run: |
+          if [ -f .mcp.json ]; then
+            if grep -EIq '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16})' .mcp.json; then
+              echo "::error::Possible secret committed in .mcp.json -- use env var references instead."
+              exit 1
+            fi
+          fi

@@ -1,0 +1,31 @@
+name: Feature request
+description: A new capability, sized per INVEST before it's marked ready.
+title: "[feature]: "
+labels: ["type:feature", "needs-clarification"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+    validations:
+      required: false
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (owner fills in during triage)
+      options: ["P0", "P1", "P2", "P3"]
+    validations:
+      required: false
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated effort (owner fills in during triage)
+      options: ["XS", "S", "M", "L", "XL"]
+    validations:
+      required: false

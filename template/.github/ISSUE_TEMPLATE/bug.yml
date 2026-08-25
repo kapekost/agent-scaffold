@@ -1,0 +1,25 @@
+name: Bug report
+description: Something is broken.
+title: "[bug]: "
+labels: ["type:bug", "needs-clarification"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Estimated effort (owner fills in during triage)
+      options: ["XS", "S", "M", "L", "XL"]
+    validations:
+      required: false

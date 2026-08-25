@@ -34,6 +34,20 @@ assert_contains() {
 assert_file "AGENTS.md"
 assert_contains "AGENTS.md" "# Test Project"
 
+assert_file ".github/ISSUE_TEMPLATE/config.yml"
+assert_file ".github/ISSUE_TEMPLATE/bug.yml"
+assert_file ".github/ISSUE_TEMPLATE/feature.yml"
+assert_file ".github/ISSUE_TEMPLATE/chore.yml"
+assert_file ".github/PULL_REQUEST_TEMPLATE.md"
+assert_file ".github/CODEOWNERS"
+assert_contains ".github/CODEOWNERS" "@testowner"
+assert_file ".github/labels.yml"
+assert_contains ".github/labels.yml" 'name: "effort:L"'
+assert_file ".github/dependabot.yml"
+assert_file ".github/workflows/ci.yml"
+assert_contains ".github/workflows/ci.yml" "branches: [main]"
+assert_contains ".github/workflows/ci.yml" '${{ github.ref }}'
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else
