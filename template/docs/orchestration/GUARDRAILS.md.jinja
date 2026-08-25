@@ -1,0 +1,51 @@
+# Orchestration Guardrails
+
+> The autonomous runner (`/orchestrate`, scheduled or manual) MUST obey this file. When GUARDRAILS and
+> any other doc conflict, GUARDRAILS wins. Linked decisions live in `DECISIONS.md`.
+
+## Merge & branch rules
+- **Never auto-merge to `{{ default_branch }}`.** Open PRs only; a human (or an owner-approved green-CI gate) merges.
+- **Never force-push.** Never push directly to `{{ default_branch }}`.
+- Feature branch → PR. No direct commits to `{{ default_branch }}`.
+
+## Destructive operations (require an in-doc APPROVE flag)
+A task is **destructive** if it does any of:
+- Drops/renames DB tables or columns, or runs a migration with data loss.
+- Deletes more than 10 tracked files in one task.
+- Changes auth, session, secret, or token handling.
+- Any other irreversible action (history rewrite, remote branch deletion).
+
+**Flow:** a destructive task stays blocked until its Issue has the `approved` label (or, for
+orchestrator-level tasks, `STATE.md` has its `- [x] APPROVE <task-id>` box checked). Unattended: flag
+present → execute; flag absent → queue + report; **never guess**.
+
+## Task sizing & context-budget decomposition
+- Before dispatch, any task labeled `effort:L` or `effort:XL` MUST be split into linked sub-Issues at
+  planning time, each sized `effort:M` or smaller, before any code changes start.
+- If a dispatched subagent's context grows past the per-task budget below mid-task anyway, it MUST
+  checkpoint progress to the Issue and `STATE.md`, then hand the remainder to a **fresh subagent**
+  rather than continuing. Never push through a bloated context to "just finish."
+- Default thresholds (tune per repo in `DECISIONS.md` if needed): a single task touching **more than
+  40 files**, or costing **more than ~150k tokens**, must checkpoint and split/hand off.
+
+## Cross-repo writes (template feedback)
+- A `[template]`-tagged `IMPROVEMENTS.md` entry may only become a PR against the template repo using a
+  named, explicit credential set up for that purpose — never implied by this repo's own `gh` auth.
+- Template PRs are never auto-merged, exactly like destructive operations above.
+
+## Hard stops (always halt + notify — no flag overrides these)
+- CI is red.
+- A merge conflict needs human judgment.
+- The per-tick token budget is exceeded.
+- A single task would change more than 40 files.
+- A force-push, or a direct push to `{{ default_branch }}`, is attempted (also forbidden by the branch rules above).
+- Any secret/credential would be written to a tracked file.
+- The requirement is ambiguous or contradicts an Issue's description / `DECISIONS.md`.
+- A `copier update` produces a conflict — resolve manually, never auto-resolve.
+
+On a hard stop: write the blocker under `STATE.md` → "Needs owner", notify, halt that thread cleanly.
+
+## Budgets (lean contract)
+- **Per-tick token budget:** ~150k tokens of work, then checkpoint cleanly even mid-task.
+- Reload **docs, not the repo**. Fan execution to subagents; one task = one subagent with a scoped
+  file list. `/orchestrate status` must do zero execution.

@@ -48,6 +48,15 @@ assert_file ".github/workflows/ci.yml"
 assert_contains ".github/workflows/ci.yml" "branches: [main]"
 assert_contains ".github/workflows/ci.yml" '${{ github.ref }}'
 
+assert_file "docs/orchestration/PLAYBOOK.md"
+assert_file "docs/orchestration/GUARDRAILS.md"
+assert_contains "docs/orchestration/GUARDRAILS.md" "more than 40 files"
+assert_file "docs/orchestration/STATE.md"
+assert_contains "docs/orchestration/STATE.md" "**Project:** Test Project"
+assert_file "docs/orchestration/DECISIONS.md"
+assert_file "docs/orchestration/IMPROVEMENTS.md"
+assert_contains "docs/orchestration/IMPROVEMENTS.md" "last-reviewed-count: 0"
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else
