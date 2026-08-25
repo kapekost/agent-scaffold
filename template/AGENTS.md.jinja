@@ -1,0 +1,16 @@
+# {{ project_name }}
+
+Orchestration state and rules live in `docs/orchestration/`:
+- `STATE.md` — current cursor, what to do next.
+- `PLAYBOOK.md` — how `/orchestrate` runs.
+- `GUARDRAILS.md` — hard rules; wins on conflict with anything else.
+- `DECISIONS.md` — owner decisions already made; don't relitigate.
+- `IMPROVEMENTS.md` — friction log, reviewed automatically per tick.
+
+Tasks live as GitHub Issues (`type`/`priority`/`effort` labels), ranked in
+the repo's Project board. `/orchestrate` reads and writes them via `gh`.
+
+MCP servers: copy `.mcp.json.example` to `.mcp.json` and fill in what this
+repo actually needs. Start new servers at local scope, promote to project
+scope only once reviewed — never commit a real credential; reference an
+env var instead.

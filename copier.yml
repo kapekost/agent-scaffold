@@ -1,0 +1,30 @@
+# Copier configuration for project-template.
+# https://copier.readthedocs.io/en/stable/configuring/
+
+_subdirectory: template
+_envops:
+  keep_trailing_newline: true
+
+project_name:
+  type: str
+  help: "Human-readable project name (e.g. 'Photo Cull')"
+
+project_slug:
+  type: str
+  help: "Repo/slug name, lowercase-with-dashes"
+  default: "{{ project_name.lower().replace(' ', '-') }}"
+
+description:
+  type: str
+  help: "One-sentence description of the project"
+  default: ""
+
+github_owner:
+  type: str
+  help: "GitHub username or org that owns this repo"
+  default: "kapekost"
+
+default_branch:
+  type: str
+  help: "Default branch name"
+  default: "main"
