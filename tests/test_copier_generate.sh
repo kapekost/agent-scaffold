@@ -4,11 +4,12 @@ set -euo pipefail
 # Runs `copier copy` against this repo and asserts the rendered output is
 # correct. Extended by later tasks — do not create a second test file.
 
+export PATH="$HOME/.local/bin:$PATH"
 root="$(git rev-parse --show-toplevel)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-~/.local/bin/copier copy --defaults --trust \
+copier copy --defaults --trust \
   --data project_name="Test Project" \
   --data project_slug="test-project" \
   --data description="A test project" \
