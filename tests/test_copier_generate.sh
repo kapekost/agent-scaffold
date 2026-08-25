@@ -62,6 +62,16 @@ assert_file "scripts/improvements_since_cursor.sh"
 assert_file "scripts/advance_improvements_cursor.sh"
 assert_file "scripts/sync_labels.sh"
 
+assert_file ".claude/settings.json"
+assert_file ".mcp.json.example"
+assert_contains ".mcp.json.example" "GITHUB_PERSONAL_ACCESS_TOKEN"
+
+# .mcp.json.example must never contain a real-looking credential.
+if grep -Eq '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,})' "$tmp/.mcp.json.example"; then
+  echo "FAIL: .mcp.json.example appears to contain a real credential" >&2
+  fail=1
+fi
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else
