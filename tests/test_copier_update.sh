@@ -36,6 +36,8 @@ if [[ ! -f "$dest/.copier-answers.yml" ]]; then
   fail=1
 fi
 
+commit_before="$(grep '^_commit:' "$dest/.copier-answers.yml" | awk '{print $2}')"
+
 # 3. Change the template (simulate a template-level improvement) and commit.
 echo "- name: \"type:docs\"" >> "$template_copy/template/.github/labels.yml"
 echo '  color: "0075CA"' >> "$template_copy/template/.github/labels.yml"
@@ -48,6 +50,12 @@ git -C "$dest" init -q
 git -C "$dest" add -A
 git -C "$dest" commit -q -m "initial generation"
 (cd "$dest" && copier update --defaults --trust)
+
+commit_after="$(grep '^_commit:' "$dest/.copier-answers.yml" | awk '{print $2}')"
+if [[ "$commit_before" == "$commit_after" ]]; then
+  echo "FAIL: .copier-answers.yml's _commit did not advance after copier update" >&2
+  fail=1
+fi
 
 if ! grep -qF 'type:docs' "$dest/.github/labels.yml"; then
   echo "FAIL: copier update did not propagate the new label" >&2

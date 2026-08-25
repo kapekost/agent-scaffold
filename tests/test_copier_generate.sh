@@ -89,6 +89,9 @@ if [[ "$expected_count" != "$actual_count" ]]; then
   fail=1
 fi
 
+assert_file ".copier-answers.yml"
+assert_contains ".copier-answers.yml" "_src_path"
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
 else
