@@ -60,3 +60,7 @@ bash tests/test_improvements_scripts.sh
 bash tests/test_sync_labels.sh
 bash tests/test_copier_update.sh
 ```
+
+## License
+
+[MIT](LICENSE)
