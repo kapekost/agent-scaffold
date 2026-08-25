@@ -154,12 +154,13 @@ small and coherent:
   template file) appends one line to that repo's `IMPROVEMENTS.md`,
   tagged `[local]`, `[template]`, or `[unsure]`. This happens inline,
   using context the subagent already has loaded — no extra scan.
-- **Review** — at each `/orchestrate` tick close (or a dedicated
-  `/orchestrate review-feedback` variant), the orchestrator dispatches a
-  scoped, one-shot review subagent that reads only entries appended
-  since `IMPROVEMENTS.md`'s `last-reviewed` cursor, classifies each, and
-  moves the cursor forward. It never re-scans older entries or project
-  history.
+- **Review** — automatic at the end of any `/orchestrate` tick that
+  logged at least one new entry (no manual trigger needed). The
+  orchestrator dispatches a scoped, one-shot review subagent that reads
+  only entries appended since `IMPROVEMENTS.md`'s `last-reviewed`
+  cursor, classifies each, and moves the cursor forward. It never
+  re-scans older entries or project history. A tick with zero new
+  entries skips this step entirely.
 - **Local application** — `[local]` entries get applied directly to that
   repo's own docs/config via a normal PR in that repo.
 - **Template PRs** — `[template]` entries get a PR opened against the
@@ -222,12 +223,16 @@ small and coherent:
 
 ## Testing / Validation Plan
 
-- **Pilot on `photo-cull`** — already the designated orchestration
-  testbed. Apply the template via `copier copy` against its existing
-  content (manual reconciliation where it conflicts with what's already
-  there), run one real `/orchestrate` tick end to end, confirm the
-  Issues-based backbone, decomposition rule, and `IMPROVEMENTS.md`
-  capture all work in practice.
+- **Pilot on `kapekost-web`** — active repo, already has `AGENTS.md` and
+  a per-repo skill (`run-dev`) with its own eval framework, and isn't
+  infra-critical the way home-assistant is. (`photo-cull` was
+  considered but excluded — it's finished and a different shape: a
+  local macOS app, not an ongoing dev-workflow project.) Apply the
+  template via Copier against its existing content (manual
+  reconciliation where it conflicts with what's already there — e.g.
+  its existing `AGENTS.md`), run one real `/orchestrate` tick end to
+  end, confirm the Issues-based backbone, decomposition rule, and
+  `IMPROVEMENTS.md` capture all work in practice.
 - **Update-path dry run** — after the pilot, make one deliberate template
   change and confirm `copier update` against a second repo applies it
   cleanly.
@@ -238,21 +243,21 @@ small and coherent:
 ## Rollout Plan
 
 1. Build template content in this repo.
-2. Pilot on `photo-cull`.
+2. Pilot on `kapekost-web`.
 3. Iterate on the template using its own feedback loop (bootstrapped —
    the pilot's own friction becomes the first real `[template]` PRs).
-4. Roll out to remaining active repos (kapekost-web, workout-tracker,
+4. Roll out to remaining active repos (workout-tracker,
    claude/home-assistant) opportunistically via `copier update` /
-   `copier link` — no forced migration.
+   `copier link` — no forced migration. `photo-cull` and `dimkos` stay
+   out of scope for this rollout (see Non-Goals / Testing).
 
-## Open questions (proposed defaults — confirm or override)
+## Decisions locked for v1 (revisit anytime — all reversible)
 
-- **Template repo hosting** — proposed: private GitHub repo under the
-  owner's personal account, same as other active repos. Confirm.
-- **Decomposition thresholds** — proposed: carry dimkos's existing
-  numbers forward unchanged (>40 files or ~150k tokens per task
-  triggers mandatory split/checkpoint). Confirm or tune.
-- **`/orchestrate review-feedback` cadence** — proposed: run
-  automatically at the end of every tick that logged at least one new
-  `IMPROVEMENTS.md` entry, rather than requiring a separate manual
-  invocation. Confirm.
+- **Template repo hosting** — private GitHub repo under the owner's
+  personal account, same as other active repos.
+- **Decomposition thresholds** — carry dimkos's existing numbers forward
+  unchanged: >40 files or ~150k tokens per task triggers mandatory
+  split/checkpoint.
+- **Feedback review cadence** — automatic, at the end of any tick that
+  logged at least one new `IMPROVEMENTS.md` entry. A tick with nothing
+  new skips the review step entirely.
