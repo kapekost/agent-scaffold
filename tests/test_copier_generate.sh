@@ -60,6 +60,7 @@ assert_contains "docs/orchestration/IMPROVEMENTS.md" "last-reviewed-count: 0"
 assert_file "scripts/append_improvement.sh"
 assert_file "scripts/improvements_since_cursor.sh"
 assert_file "scripts/advance_improvements_cursor.sh"
+assert_file "scripts/sync_labels.sh"
 
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
