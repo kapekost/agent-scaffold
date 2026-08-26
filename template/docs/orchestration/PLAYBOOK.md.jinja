@@ -7,7 +7,9 @@
 ## Command variants (dispatch on the argument)
 - `/orchestrate` (no arg) — run the next tick.
 - `/orchestrate status` — reconstruct + report only. **No execution, no writes.** Cheapest path.
-- `/orchestrate approve <issue-number>` — add the `approved` label to the given Issue, comment why, stop.
+- `/orchestrate approve <issue-number>` — **human-only**, never dispatched by an unattended tick (see
+  GUARDRAILS "Approval is human-only"). When a human runs it: add the `approved` label to the given
+  Issue, comment why, stop.
 - `/orchestrate plan <issue-number>` — write the detailed plan for an Issue lacking one, via
   `superpowers:writing-plans`, then stop.
 - `/orchestrate review-feedback` — run only step 8 below (feedback review), then stop. Also runs

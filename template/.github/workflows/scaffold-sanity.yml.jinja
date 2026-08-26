@@ -1,4 +1,10 @@
-name: CI
+name: Scaffold sanity
+
+# Validates the agent-scaffold machinery itself (label/dependabot config,
+# no committed secrets) — NOT the application. It is deliberately not named
+# "CI": a green check here says nothing about whether the app's own tests,
+# build, or lint passed. If this project has (or gets) real application
+# CI, that workflow is the one that should be a required status check.
 
 on:
   pull_request:
@@ -12,7 +18,7 @@ concurrency:
   # Copier renders this file as Jinja. The value below wraps GitHub
   # Actions' own double-curly-brace syntax in a Jinja "raw" block so
   # Copier doesn't try to parse it as a template expression.
-  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  group: scaffold-sanity-{% raw %}${{ github.ref }}{% endraw %}
   cancel-in-progress: true
 
 jobs:

@@ -44,9 +44,9 @@ assert_contains ".github/CODEOWNERS" "@testowner"
 assert_file ".github/labels.yml"
 assert_contains ".github/labels.yml" 'name: "effort:L"'
 assert_file ".github/dependabot.yml"
-assert_file ".github/workflows/ci.yml"
-assert_contains ".github/workflows/ci.yml" "branches: [main]"
-assert_contains ".github/workflows/ci.yml" '${{ github.ref }}'
+assert_file ".github/workflows/scaffold-sanity.yml"
+assert_contains ".github/workflows/scaffold-sanity.yml" "branches: [main]"
+assert_contains ".github/workflows/scaffold-sanity.yml" '${{ github.ref }}'
 
 assert_file "docs/orchestration/PLAYBOOK.md"
 assert_file "docs/orchestration/GUARDRAILS.md"
