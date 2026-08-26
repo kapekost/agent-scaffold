@@ -23,10 +23,11 @@ assert_contains() {
 
 assert_contains 'gh label create "type:bug" --color "D73A4A" --description "Something broken" --force'
 assert_contains 'gh label create "ready" --color "0E8A16" --description "Triaged and ready for /orchestrate to pick up" --force'
+assert_contains 'gh label create "intake" --color "0052CC" --description "Raw, high-level ask from the product owner, not yet triaged" --force'
 
 line_count="$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
-if [[ "$line_count" -ne 16 ]]; then
-  echo "FAIL: expected 16 label commands, got $line_count" >&2
+if [[ "$line_count" -ne 17 ]]; then
+  echo "FAIL: expected 17 label commands, got $line_count" >&2
   fail=1
 fi
 

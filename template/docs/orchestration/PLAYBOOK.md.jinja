@@ -4,6 +4,36 @@
 > GitHub Issues + Projects (see below); this file is *how* to drive them. Reuse superpowers skills —
 > do not reinvent.
 
+## When to actually use this
+
+The Project board and the intake/triage machinery below earn their keep once a repo has ongoing,
+real feature work moving through it — not from the first commit. A one-off fix, or a repo nobody's
+actively driving feature requests into yet, doesn't need Issues, a ranked board, or
+clarifying-question ceremony: just do the work directly. Turn this on once a product owner starts
+bringing feature requests you'd otherwise have to remember and sequence yourself.
+
+## Feature intake (product owner → Issues)
+
+A high-level feature request from the product owner — in conversation, not yet an Issue — does not
+go straight to code, and does not get invented scope on their behalf.
+
+1. **Ask clarifying questions** to shape it: the actual user-facing outcome, what's explicitly out
+   of scope, constraints, rough priority. Do not guess at intent — the same "never guess" principle
+   GUARDRAILS applies to destructive-op approval applies here to scope.
+2. **Capture the raw ask as a single Issue labeled `intake`** before attempting full decomposition —
+   even a rough capture beats losing the ask to context. `intake` means "not triaged at all yet";
+   it is a different state from `needs-clarification` ("was triaged and failed" — see the Triage /
+   INVEST gate below). Neither is `ready`.
+3. **Run it through the Triage / INVEST gate.** If it's small enough as one Issue, relabel `intake` →
+   `ready` (or `needs-clarification` if it still doesn't pass) directly. If it needs splitting, open
+   properly-scoped child Issues (type/priority/effort labeled, INVEST-checked, referencing the
+   `intake` Issue), add them to the Project board ranked, then close the `intake` Issue with a
+   pointer to its children.
+4. An unattended `/orchestrate` tick that reaches an `intake`-labeled Issue and can't resolve steps
+   1–3 without the owner (the clarifying questions have no answer yet) treats it exactly like a
+   failed INVEST gate: relabel `needs-clarification`, stop, flag for the owner. Never guess and never
+   invent an answer to keep moving.
+
 ## Command variants (dispatch on the argument)
 - `/orchestrate` (no arg) — run the next tick.
 - `/orchestrate status` — reconstruct + report only. **No execution, no writes.** Cheapest path.
@@ -20,7 +50,9 @@
 Before an Issue gets the `ready` label, it must pass a basic INVEST sanity check (Independent,
 Negotiable, Valuable, Estimable, Small, Testable — see the `feature` issue form). If it clearly
 fails — too vague, too large for its stated effort, or not independently actionable — label it
-`needs-clarification` instead of `ready` and stop; do not guess at intent.
+`needs-clarification` instead of `ready` and stop; do not guess at intent. An Issue arriving via
+Feature intake starts labeled `intake`, not `needs-clarification` — see that section above for the
+distinction.
 
 Issue dependencies (`blocked-by`) are tracked via GitHub's native issue-dependency relationship,
 not a label: set it through the Issue UI's "Blockers" panel, since there is no plain `gh issue`
@@ -32,9 +64,14 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
 1. **Read** `STATE.md`, `GUARDRAILS.md`, `DECISIONS.md`. Do not read source files yet.
 2. **Reconcile reality:** `git status`, `gh pr list`, `gh issue list --label ready --state open`
    (sorted by the Project's manual rank). If reality diverged from `STATE.md`, correct `STATE.md` and
-   continue.
-3. **Pick the next action** = highest-ranked open Issue with the `ready` label and no unresolved
-   `blocked-by` dependency. Then:
+   continue. Also check for new owner comments since the last tick on any Issue currently in
+   progress, or any `intake`/`needs-clarification` Issue awaiting an answer
+   (`gh issue view <n> --comments`, or `gh api` filtered by date if scripting it across many Issues) —
+   respond to them (answer, incorporate the feedback, or act on it) before picking the next action.
+   A comment sitting unanswered across a tick boundary is a bug in the loop, not something to defer.
+3. **Pick the next action.** If any Issue is labeled `intake`, resolve the highest-ranked one first
+   via the Feature intake flow above, then re-run this step. Otherwise: highest-ranked open Issue
+   with the `ready` label and no unresolved `blocked-by` dependency. Then:
    - If it has no linked plan and is `effort:M` or larger → run the `/orchestrate plan` flow and stop.
    - If it is `effort:L`/`XL` and has no sub-Issues yet → split it per GUARDRAILS "Task sizing" and stop.
    - If it is **destructive** (per GUARDRAILS) and lacks the `approved` label → skip to the next ready

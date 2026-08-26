@@ -9,9 +9,10 @@ Two separate chains, so it's always legible whether the orchestrator can
 accidentally escalate its own authority:
 
 ```
-Human
-  -> GitHub Issue
+Human (raw feature request)
+  -> `intake`-labeled Issue
   -> Triage / INVEST
+  -> `ready`-labeled Issue (or `needs-clarification`, back to Human)
   -> Plan
   -> Agent executes
   -> Tests
@@ -59,6 +60,18 @@ present → execute; flag absent → queue + report; **never guess**.
 - This is the one rule in this document that has no unattended-execution
   exception. There is no flag that overrides it.
 
+## Intake before ready
+- An Issue labeled `intake` has not been triaged. Never execute against it,
+  never treat it as `ready`, never skip the Feature intake flow in
+  `PLAYBOOK.md` to "just get started" because the ask seems obvious.
+- Resolving an `intake` Issue means either relabeling it `ready` directly
+  (small enough as-is) or splitting it into `ready` child Issues and
+  closing it — never editing it in place into something execution picks up
+  by coincidence.
+- If shaping it requires an answer only the owner has, that's the same
+  **hard stop** as a failed INVEST gate: relabel `needs-clarification`,
+  stop, do not guess.
+
 ## Task sizing & context-budget decomposition
 - Before dispatch, any task labeled `effort:L` or `effort:XL` MUST be split into linked sub-Issues at
   planning time, each sized `effort:M` or smaller, before any code changes start.
@@ -82,6 +95,9 @@ present → execute; flag absent → queue + report; **never guess**.
 
 ## Hard stops (always halt + notify — no flag overrides these)
 - An agent is about to add the `approved` label, or check an `APPROVE` box, itself.
+- An agent is about to execute against an `intake`-labeled Issue directly.
+- A new owner comment on an in-progress or `intake`/`needs-clarification` Issue was found unanswered
+  at the start of a tick (see PLAYBOOK step 2) — answer it before doing anything else that tick.
 - CI is red.
 - A merge conflict needs human judgment.
 - The per-tick token budget is exceeded.
