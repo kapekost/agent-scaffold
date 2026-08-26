@@ -1,7 +1,7 @@
 name: Chore
 description: Maintenance work with no behavior change.
 title: "[chore]: "
-labels: ["type:chore"]
+labels: ["type:chore", "intake"]
 body:
   - type: textarea
     id: what

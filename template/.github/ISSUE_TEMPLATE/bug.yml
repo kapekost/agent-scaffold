@@ -1,7 +1,7 @@
 name: Bug report
 description: Something is broken.
 title: "[bug]: "
-labels: ["type:bug", "needs-clarification"]
+labels: ["type:bug", "intake"]
 body:
   - type: textarea
     id: what-happened

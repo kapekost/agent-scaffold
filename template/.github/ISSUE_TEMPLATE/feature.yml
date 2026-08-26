@@ -1,7 +1,7 @@
 name: Feature request
 description: A new capability, sized per INVEST before it's marked ready.
 title: "[feature]: "
-labels: ["type:feature", "needs-clarification"]
+labels: ["type:feature", "intake"]
 body:
   - type: textarea
     id: problem
