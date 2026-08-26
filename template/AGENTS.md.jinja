@@ -14,3 +14,17 @@ MCP servers: copy `.mcp.json.example` to `.mcp.json` and fill in what this
 repo actually needs. Start new servers at local scope, promote to project
 scope only once reviewed — never commit a real credential; reference an
 env var instead.
+
+## Deployment knowledge stays local
+
+If (once this project actually deploys somewhere) `AGENTS.md` grows a
+runbook, keep it generic: how to build, how to deploy, what to verify — in
+the abstract, so it's still correct for anyone who forks this project onto
+their own infrastructure. The moment a real host, IP, SSH key, or
+co-located service enters the picture, that's deployment-specific
+knowledge, not project knowledge: it belongs in `AGENTS.local.md` (copy
+`AGENTS.local.md.example` to start one; make sure `AGENTS.local.md` itself
+is in `.gitignore` — this template ships none, so add it). A local agent
+deploying this project should read `AGENTS.local.md` for the real specifics
+and keep it current, the same way `STATE.md` gets kept current for
+orchestration.

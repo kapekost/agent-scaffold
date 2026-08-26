@@ -33,6 +33,13 @@ present → execute; flag absent → queue + report; **never guess**.
   named, explicit credential set up for that purpose — never implied by this repo's own `gh` auth.
 - Template PRs are never auto-merged, exactly like destructive operations above.
 
+## Deployment knowledge stays local
+- Never commit a real deploy-target host, IP, hostname, SSH key path, or
+  co-located service name to a tracked file. That's `AGENTS.local.md`
+  territory (gitignored) — see `AGENTS.md`'s "Deployment knowledge stays
+  local" section. `AGENTS.md` and `README.md` describe the deploy *process*
+  generically; `AGENTS.local.md` holds the literal, real-world specifics.
+
 ## Hard stops (always halt + notify — no flag overrides these)
 - CI is red.
 - A merge conflict needs human judgment.

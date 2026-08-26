@@ -1,0 +1,43 @@
+# AGENTS.local.md — local deploy notes (not tracked)
+
+Copy this file to `AGENTS.local.md` (already covered by `.gitignore` — verify
+it's actually listed there, this template ships no `.gitignore` of its own)
+and fill it in with the real, machine-specific details of wherever *you*
+deploy this project. `AGENTS.md` should stay generic and portable so it's
+useful to anyone who forks or reuses this project on their own
+infrastructure; this file is where the specifics of one particular
+deployment actually live.
+
+Typical contents:
+
+## Deploy target
+
+Host, IP/hostname, how you reach it (SSH key, Tailscale, etc.), OS/arch
+constraints that shape the build (e.g. a low-RAM board that can't build its
+own frontend).
+
+## Co-located services
+
+If this deploys alongside something else on shared hardware, name it and
+note anything that must not be disrupted. (Example: a home-automation
+system, a media server, another app on the same box — whatever it actually
+is for you. There is nothing generic about this section; it only exists
+because *your* target isn't a blank machine.)
+
+## Hard rules specific to this deployment
+
+Anything that would be wrong advice for someone deploying elsewhere but is
+load-bearing for this one target — port choices made to avoid a collision,
+"never build on-device", that kind of thing.
+
+## Runbook
+
+The actual build/transfer/run/verify commands, with real hostnames and
+paths. `AGENTS.md` should describe the *shape* of the deploy process
+generically; this is where the literal, copy-pasteable version lives.
+
+## Gotchas and incident history
+
+Deployment-specific lessons learned the hard way — hardware quirks, past
+outages on this specific box, anything future-you or a future agent
+shouldn't have to rediscover.
