@@ -51,11 +51,15 @@ classifier), forcing a stop-and-ask that a cleaner rule would avoid.
 ## Supersedes
 
 **The 2026-08-25 project-template design spec's explicit non-goal:** *"No auto-merge,
-anywhere, for anything. Every existing GUARDRAILS approval gate stays intact."* That was a
-deliberate, considered choice one day before this one — not accidental wording — made when
-the system was unproven. Now that it's been exercised, the owner has confirmed the merge
-rule should change (see "Merge policy" below). Named here explicitly so a future reader
-doesn't find two specs disagreeing without knowing which one is current.
+anywhere, for anything. Every existing GUARDRAILS approval gate stays intact; template-level
+PRs get the same treatment."* That was a deliberate, considered choice one day before this
+one — not accidental wording, and it explicitly called out template-repo PRs as deserving the
+same manual gate as destructive operations. Now that the system has been exercised, the owner
+has confirmed the merge rule should change **for both**: auto-merge on green CI applies
+uniformly, including to PRs against this template repo itself — no carve-out. Named here
+explicitly so a future reader doesn't find two specs disagreeing without knowing which one is
+current, and doesn't assume a template-PR exception exists when it was deliberately
+considered and rejected.
 
 ## Design
 
@@ -82,7 +86,8 @@ new tooling or Mermaid dependency).
 
 **Feature Intake Cycle:**
 ```
-Human: raw idea -> Agent: capture as `intake` Issue -> Agent: Triage/INVEST
+Human: raw idea -> Agent: ask clarifying questions (outcome, non-goals, constraints, priority)
+  -> Agent: capture as `intake` Issue -> Agent: Triage/INVEST
   - small enough -> `ready`
   - needs owner input -> `needs-clarification` -> Human answers -> back to Triage
   - too big -> split into `ready` children
@@ -100,13 +105,15 @@ Tick starts -> Reconcile git/gh/STATE.md -> new human comments since last tick?
       yes -> PushNotification -> tick ends
       no -> tick ends
 ```
+(Step 8, feedback review, is omitted above — it only runs when the tick logged a new
+`IMPROVEMENTS.md` entry, so it's conditional rather than part of every cycle.)
 
 ### 3. Observability: `PushNotification`, not a new channel
 
 `PLAYBOOK.md`'s step 9 ("Close the tick") gains one conditional action: if the tick produced
 something the owner couldn't already know about without checking — a new `intake`/
-`needs-clarification` question now waiting on them, a hard stop, or unattended work having run
-dry — call `PushNotification` with a one-line summary. Skip it when the tick ended cleanly with
+`needs-clarification` question now waiting on them, a hard stop, or nothing left to do
+unattended — call `PushNotification` with a one-line summary. Skip it when the tick ended cleanly with
 more `ready` work still queued; a notification for every tick defeats the purpose (the tool's
 own guidance: "a notification they didn't need is annoying in a way that accumulates").
 
@@ -128,19 +135,34 @@ destructive work is already gated by the `approved` label before execution start
 "Destructive operations") — auto-merge doesn't remove either gate, it just stops asking the
 human to re-approve what CI and those earlier gates already cleared.
 
+**No carve-out for template-repo PRs.** GUARDRAILS' "Cross-repo writes" section previously
+required `[template]`-tagged PRs to skip auto-merge entirely (the clause named in "Supersedes"
+above). That's removed: template PRs auto-merge on green CI exactly like any other PR. The
+credential restriction in that section (a `[template]`-tagged PR may only be opened with a
+named, explicit credential, never this repo's own `gh` auth) is unchanged and remains the
+actual safeguard for that class of PR — it was never a merge-gate, and doesn't need to become
+one now.
+
 ## Rollout
 
 1. Template (`agent-scaffold`): `GUARDRAILS.md.jinja` and `PLAYBOOK.md.jinja` already edited
-   as part of this design pass (merge policy + PushNotification step). Remaining work: author
-   `template/docs/orchestration/README.md.jinja` (new file) containing sections 1 and 2 above,
-   parameterized with `{{ project_name }}` where natural.
-2. `tests/test_copier_generate.sh` needs one new `assert_file "docs/orchestration/README.md"`
-   line (and whatever content assertions make sense) — the test's own full-tree count check
-   will otherwise fail the moment a new templated file exists without a corresponding
-   generated-output assertion update.
-3. Propagate to `workout-tracker` and `kapekost-web` via `copier update` in each. Both will
-   also need a `DECISIONS.md` entry recording the auto-merge policy change locally (mirroring
-   how the 2026-08-26 B2C-reversal decision was logged in `kapekost-web`), since their copies
-   of `GUARDRAILS.md` currently still say "never auto-merge" until the update lands.
-4. No `STATE.md`/`.claude/commands/orchestrate.md.jinja` changes needed — the command
+   as part of this design pass (merge policy, template-PR carve-out removed, PushNotification
+   step). Remaining work: author `template/docs/orchestration/README.md.jinja` (new file)
+   containing sections 1 and 2 above, parameterized with `{{ project_name }}` where natural.
+2. `tests/test_copier_generate.sh` should get one new `assert_file
+   "docs/orchestration/README.md"` line (plus a content assertion or two) for the new file, as
+   normal practice for anything the template generates — verified this is not required to keep
+   the suite passing (the full-tree count check compares `template/` against generated output,
+   and both sides increment together when a new file renders normally), but it's still the
+   right coverage for a file whose content actually matters.
+3. **Enable the auto-merge prerequisite** in all three repos (`agent-scaffold`,
+   `workout-tracker`, `kapekost-web`) before step 6/GUARDRAILS' new rule can actually work: repo
+   setting "Allow auto-merge", plus branch protection on the default branch requiring the CI
+   check to pass. Without this, the first `gh pr merge --auto` call in any of them fails.
+4. Propagate the doc changes to `workout-tracker` and `kapekost-web` via `copier update` in
+   each. Both will also need a `DECISIONS.md` entry recording the auto-merge policy change
+   locally (mirroring how the 2026-08-26 B2C-reversal decision was logged in `kapekost-web`),
+   since their copies of `GUARDRAILS.md` currently still say "never auto-merge" until the
+   update lands.
+5. No `STATE.md`/`.claude/commands/orchestrate.md.jinja` changes needed — the command
    dispatch table is unaffected; only step content within the tick changes.
