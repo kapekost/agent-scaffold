@@ -17,8 +17,7 @@ Human (raw feature request)
   -> Agent executes
   -> Tests
   -> Code review
-  -> PR
-  -> Human merges
+  -> PR -> Agent watches CI -> green -> Agent merges
 ```
 
 ```
@@ -32,7 +31,18 @@ The second chain has exactly one entry point: a human. Nothing in this repo
 the `approved` label itself. See "Approval is human-only" below.
 
 ## Merge & branch rules
-- **Never auto-merge to `{{ default_branch }}`.** Open PRs only; a human (or an owner-approved green-CI gate) merges.
+- **PRs merge once CI is green, with no further live approval per PR.** After opening the PR: run
+  `gh pr checks <PR> --watch --fail-fast` to block until checks finish, then — only if that exits
+  0 — `gh pr merge <PR> --squash --delete-branch`. This is a standing owner decision (see
+  `DECISIONS.md`), not something re-asked each time.
+- **Do not use `gh pr merge --auto` for this.** It only waits for checks that are configured as
+  *required* via branch protection — with none configured (the common case for a fresh or private
+  repo, where branch protection may not even be available on the free plan), `--auto` merges
+  immediately, before CI has even started. Verified empirically 2026-08-26: a PR merged instantly
+  while its test job was still `pending`. The watch-then-merge sequence above has no such gap and
+  needs no branch-protection setup, on any repo.
+- **A red CI is still a hard stop.** If `gh pr checks --watch --fail-fast` exits non-zero, do not
+  merge — fix it and push again, do not force through.
 - **Never force-push.** Never push directly to `{{ default_branch }}`.
 - Feature branch → PR. No direct commits to `{{ default_branch }}`.
 
@@ -84,7 +94,8 @@ present → execute; flag absent → queue + report; **never guess**.
 ## Cross-repo writes (template feedback)
 - A `[template]`-tagged `IMPROVEMENTS.md` entry may only become a PR against the template repo using a
   named, explicit credential set up for that purpose — never implied by this repo's own `gh` auth.
-- Template PRs are never auto-merged, exactly like destructive operations above.
+- Template PRs merge on green CI the same way as any other PR — see "Merge & branch rules" above.
+  The credential restriction above is the safeguard for this class of PR, not a separate merge gate.
 
 ## Deployment knowledge stays local
 - Never commit a real deploy-target host, IP, hostname, SSH key path, or

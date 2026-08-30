@@ -1,7 +1,10 @@
 # Human/Agent Collaboration Model — Design Spec
 
 Date: 2026-08-26
-Status: Draft, pending owner review
+Status: Approved — merge policy validated in production in both `workout-tracker` and
+`kapekost-web` (2026-08-30); implementing the remaining piece (`README.md.jinja` + test
+coverage) directly rather than via a separate plan document, given how much of this was
+already nailed down through iteration and real-world testing.
 
 ## Problem
 
@@ -73,7 +76,7 @@ considered and rejected.
 | Destructive approval | Sole holder of `approved` | Never self-approves |
 | Execution | — | Plans, codes, tests, reviews, opens PRs |
 | Housekeeping | — | Keeps STATE/DECISIONS/IMPROVEMENTS current, links docs, closes stale issues |
-| Merge | Enables the policy once (branch protection + "Allow auto-merge") | Opens PR, enables `--auto`, CI gates the rest |
+| Merge | Nothing — no one-time setup needed | Opens PR, watches CI itself, merges once green |
 | Observability | Gets pushed a notification when something needs them | Reports every tick into STATE.md + Issue comments |
 
 ### 2. Two diagrams, not one
@@ -91,9 +94,9 @@ Human: raw idea -> Agent: ask clarifying questions (outcome, non-goals, constrai
   - small enough -> `ready`
   - needs owner input -> `needs-clarification` -> Human answers -> back to Triage
   - too big -> split into `ready` children
-`ready` -> Agent: plan+execute+test+review -> PR (auto-merge enabled) -> CI green?
+`ready` -> Agent: plan+execute+test+review -> PR -> Agent watches CI -> green?
   no -> back to execute (fix, push again)
-  yes -> merged, no further action needed
+  yes -> Agent merges, no further action needed
 ```
 
 **Steady-State Tick** (what `/orchestrate` does each run):
@@ -120,28 +123,49 @@ own guidance: "a notification they didn't need is annoying in a way that accumul
 This requires no new infrastructure — `PushNotification` is a capability of the Claude Code
 session already, including scheduled/cloud sessions, not something specific to GitHub.
 
-### 4. Merge policy: auto-merge on green CI
+### 4. Merge policy: agent watches CI, then merges — not `gh pr merge --auto`
 
 `PLAYBOOK.md` step 6 changes from "open a PR, wait for CI, never auto-merge" to: open the PR,
-then immediately run `gh pr merge --auto --squash --delete-branch <PR>`. This flags the PR to
-merge once required CI checks pass; it does not merge synchronously and never bypasses a red
-check. `GUARDRAILS.md`'s merge rule and "chain of authority" diagram are updated to match —
-the human's role moves from "merges each PR" to "enabled the auto-merge policy once, up
-front" (repo setting: "Allow auto-merge", plus branch protection requiring the CI check).
+run `gh pr checks <PR> --watch --fail-fast` (blocks until CI finishes), then — only if that
+exits 0 — `gh pr merge <PR> --squash --delete-branch`. No live approval per PR, and no
+one-time human setup either.
+
+**This spec originally proposed `gh pr merge --auto` instead, and that was wrong — caught by
+testing it, not by review.** `--auto` only waits for checks configured as *required* via
+branch protection. Verified empirically 2026-08-26 on `workout-tracker` (no branch protection
+at the time): enabling `--auto` on a real PR merged it **immediately**, while its `test` check
+still showed `pending` — confirmed via `gh pr view --json state,mergeStateStatus` returning
+`MERGED` seconds after the call, and `gh pr checks` on the same PR still showing `test pending`
+afterward. Worse, branch protection isn't even available on every repo this policy needs to
+cover: `kapekost-web` is private, and GitHub's branch-protection API returns a flat 403
+("Upgrade to GitHub Pro or make this repository public") for private repos on the free plan.
+`--auto` could never be made safe there without a separate plan/visibility decision this spec
+has no business making as a side effect. The watch-then-merge sequence above has no such
+dependency — it works identically regardless of plan tier or repo visibility, because the
+agent's own poll is the gate, not GitHub's.
 
 This is coherent with the rest of the gate structure, not a review step being skipped: code
 review already happens pre-PR via `superpowers:requesting-code-review` (PLAYBOOK step 5), and
 destructive work is already gated by the `approved` label before execution starts (GUARDRAILS
-"Destructive operations") — auto-merge doesn't remove either gate, it just stops asking the
-human to re-approve what CI and those earlier gates already cleared.
+"Destructive operations") — this doesn't remove either gate, it just stops asking the human to
+re-approve what CI and those earlier gates already cleared.
+
+**Second finding from real use, 2026-08-30, folded into PLAYBOOK step 6:** `gh pr checks
+--watch --fail-fast` can return a stale rollup for the *previous* commit immediately after a
+fresh push, before the new commit's checks have registered server-side — hit twice merging a
+stack of interdependent PRs in `kapekost-web` that day. The fix is cheap: confirm `gh pr view
+--json headRefOid,statusCheckRollup` shows the commit just pushed before trusting a green
+result. Also folded in: when a PR's base has moved and it now conflicts (the common case for
+a stack of PRs touching the same files, opened against the same stale `main`), resolve by
+hand — never force through — then re-verify locally before pushing the merge commit.
 
 **No carve-out for template-repo PRs.** GUARDRAILS' "Cross-repo writes" section previously
 required `[template]`-tagged PRs to skip auto-merge entirely (the clause named in "Supersedes"
-above). That's removed: template PRs auto-merge on green CI exactly like any other PR. The
-credential restriction in that section (a `[template]`-tagged PR may only be opened with a
-named, explicit credential, never this repo's own `gh` auth) is unchanged and remains the
-actual safeguard for that class of PR — it was never a merge-gate, and doesn't need to become
-one now.
+above). That's removed: template PRs merge on green CI the same way as any other PR, via the
+same watch-then-merge sequence. The credential restriction in that section (a
+`[template]`-tagged PR may only be opened with a named, explicit credential, never this repo's
+own `gh` auth) is unchanged and remains the actual safeguard for that class of PR — it was
+never a merge-gate, and doesn't need to become one now.
 
 ## Rollout
 
@@ -155,14 +179,12 @@ one now.
    the suite passing (the full-tree count check compares `template/` against generated output,
    and both sides increment together when a new file renders normally), but it's still the
    right coverage for a file whose content actually matters.
-3. **Enable the auto-merge prerequisite** in all three repos (`agent-scaffold`,
-   `workout-tracker`, `kapekost-web`) before step 6/GUARDRAILS' new rule can actually work: repo
-   setting "Allow auto-merge", plus branch protection on the default branch requiring the CI
-   check to pass. Without this, the first `gh pr merge --auto` call in any of them fails.
+3. No repo-setting or branch-protection prerequisite is needed anywhere — the watch-then-merge
+   sequence has no dependency on either. This was the entire point of dropping `--auto`.
 4. Propagate the doc changes to `workout-tracker` and `kapekost-web` via `copier update` in
-   each. Both will also need a `DECISIONS.md` entry recording the auto-merge policy change
-   locally (mirroring how the 2026-08-26 B2C-reversal decision was logged in `kapekost-web`),
-   since their copies of `GUARDRAILS.md` currently still say "never auto-merge" until the
-   update lands.
+   each. Both will also need a `DECISIONS.md` entry recording the merge policy change locally
+   (mirroring how the 2026-08-26 B2C-reversal decision was logged in `kapekost-web`), since
+   their copies of `GUARDRAILS.md` currently still say "never auto-merge" until the update
+   lands.
 5. No `STATE.md`/`.claude/commands/orchestrate.md.jinja` changes needed — the command
    dispatch table is unaffected; only step content within the tick changes.
