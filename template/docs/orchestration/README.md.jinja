@@ -1,0 +1,66 @@
+# {{ project_name }} — Orchestration: who does what
+
+This is the entry point to `docs/orchestration/`. The other files here — `PLAYBOOK.md`,
+`GUARDRAILS.md`, `STATE.md`, `DECISIONS.md`, `IMPROVEMENTS.md` — are written for the agent
+running `/orchestrate`. This one is for you.
+
+## Roles, at a glance
+
+| | You | The agent |
+|---|---|---|
+| Feature ideas | Originate, state outcome/constraints/priority | Never invents scope |
+| Prioritization | Rank the Project board | Follows the board's rank, never reorders itself |
+| Open questions | Answer via a comment on the Issue | Asks, waits, never guesses |
+| Destructive approval | Sole holder of the `approved` label | Never self-approves |
+| Execution | — | Plans, codes, tests, reviews, opens PRs |
+| Housekeeping | — | Keeps STATE/DECISIONS/IMPROVEMENTS current, links docs, closes stale issues |
+| Merge | Nothing — no one-time setup needed | Opens PR, watches CI itself, merges once green |
+| Observability | Get pushed a notification when something needs you | Reports every tick into STATE.md + Issue comments |
+
+## Feature Intake Cycle
+
+Occasional, initiated by you — how a raw idea becomes shipped code:
+
+```
+You: raw idea -> Agent: ask clarifying questions (outcome, non-goals, constraints, priority)
+  -> Agent: capture as `intake` Issue -> Agent: Triage/INVEST
+  - small enough -> `ready`
+  - needs your input -> `needs-clarification` -> You answer -> back to Triage
+  - too big -> split into `ready` children
+`ready` -> Agent: plan+execute+test+review -> PR -> Agent watches CI -> green?
+  no -> back to execute (fix, push again)
+  yes -> Agent merges, no further action needed
+```
+
+Full detail: `PLAYBOOK.md`'s "Feature intake" section.
+
+## Steady-State Tick
+
+Recurring, initiated by the agent — what `/orchestrate` does every time it runs:
+
+```
+Tick starts -> Reconcile git/gh/STATE.md -> new comments from you since last tick?
+  yes -> answer them first
+  -> pick next ready/intake Issue -> execute -> update STATE.md + comment on Issue
+  -> needs you now? (new question / hard stop / nothing left unattended)
+      yes -> PushNotification -> tick ends
+      no -> tick ends
+```
+(Step 8, feedback review, is omitted above — it only runs when the tick logged a new
+`IMPROVEMENTS.md` entry.)
+
+Full detail: `PLAYBOOK.md`'s "The tick" section.
+
+## What you'll actually do
+
+- **Answer questions.** Check `intake`/`needs-clarification` Issues on the Project board and
+  comment your answer directly on the Issue — that's the only interface the agent reads.
+- **Prioritize.** Rank the Project board; the agent always picks the highest-ranked actionable
+  Issue, never its own preference.
+- **Approve destructive work.** Only you can add the `approved` label — see `GUARDRAILS.md`
+  "Destructive operations."
+- **Watch for a push notification.** You'll get one when a tick genuinely needs you — a new
+  question, a hard stop, or the queue running dry. No notification most ticks is expected, not
+  a sign something broke.
+- **Merge is automatic.** The agent watches CI itself and merges once it's green — you don't
+  need to click anything per PR, and there's no one-time setup required.
