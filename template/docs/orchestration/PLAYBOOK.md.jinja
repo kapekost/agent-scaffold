@@ -85,8 +85,20 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
    `scripts/append_improvement.sh <local|template|unsure> "<note>"` inline rather than waiting.
 5. **Gate:** run the task's verification commands; then `superpowers:requesting-code-review` (spec +
    code quality). At a deploy/milestone checkpoint, also run `/security-review`.
-6. **PR:** open a PR referencing the Issue (`Closes #N`), then wait for CI; treat a red CI as a hard
-   stop (do not merge). Never auto-merge to `{{ default_branch }}`.
+6. **PR:** open a PR referencing the Issue (`Closes #N`), then run
+   `gh pr checks <PR> --watch --fail-fast` to block until CI finishes. **Right after any push** (new PR
+   or a new commit on one already open), `--watch` can return a stale rollup for the *previous* commit
+   if checks haven't registered yet server-side — confirm `gh pr view <PR> --json
+   headRefOid,statusCheckRollup` shows the commit you just pushed before trusting a green result; if
+   it's stale, wait and re-check rather than merging on faith. Once genuinely green: merge immediately
+   (`gh pr merge <PR> --squash --delete-branch`), no further live approval needed. If checks exit
+   non-zero, treat red CI as a hard stop — do not merge, fix and push again. Do not use `gh pr merge
+   --auto` — it only waits for checks configured as *required* via branch protection, which may not
+   exist (or, on a private repo on the free plan, may not even be available); without that, `--auto`
+   merges immediately, before CI has even started.
+   If the base branch moved since the PR opened and it now conflicts, resolve by hand — read both
+   sides' intent, never blindly take one side or force through — then re-run local verification before
+   pushing the merge commit.
 7. **Write state back:** comment progress on the Issue; update `STATE.md`'s cursor/next-action only
    when on the orchestration home branch, never on a feature branch; append to `DECISIONS.md` if a
    decision was made.
@@ -96,7 +108,11 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
    owner), then run `scripts/advance_improvements_cursor.sh` with the new total entry count. Skip this
    step entirely if nothing new was logged this tick.
 9. **Close the tick:** print a one-screen summary (position, what you did, next action, anything
-   needing the owner).
+   needing the owner). If the tick ends with something the owner couldn't already know about without
+   checking — a new `intake`/`needs-clarification` question now waiting on them, a hard stop, or
+   nothing left to do unattended — call `PushNotification` with a one-line summary. Skip it for routine
+   ticks that ended cleanly with more `ready` work still queued; a notification for every tick is worse
+   than none.
 
 ## Budget & checkpointing
 Track work against the GUARDRAILS per-tick token budget. When near the limit, finish the current

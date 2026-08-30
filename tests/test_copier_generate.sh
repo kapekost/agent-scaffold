@@ -49,8 +49,12 @@ assert_contains ".github/workflows/scaffold-sanity.yml" "branches: [main]"
 assert_contains ".github/workflows/scaffold-sanity.yml" '${{ github.ref }}'
 
 assert_file "docs/orchestration/PLAYBOOK.md"
+assert_contains "docs/orchestration/PLAYBOOK.md" "gh pr checks"
 assert_file "docs/orchestration/GUARDRAILS.md"
 assert_contains "docs/orchestration/GUARDRAILS.md" "more than 40 files"
+assert_file "docs/orchestration/README.md"
+assert_contains "docs/orchestration/README.md" "# Test Project — Orchestration: who does what"
+assert_contains "docs/orchestration/README.md" "PushNotification"
 assert_file "docs/orchestration/STATE.md"
 assert_contains "docs/orchestration/STATE.md" "**Project:** Test Project"
 assert_file "docs/orchestration/DECISIONS.md"
