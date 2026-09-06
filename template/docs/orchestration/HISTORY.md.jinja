@@ -1,0 +1,11 @@
+# Orchestration History
+
+> Append-only archive for `STATE.md`'s Tick log. **No tick reads this file** — it exists so
+> `STATE.md` can stay near its line budget without losing anything. When a tick log entry moves
+> here (PLAYBOOK step 7), it moves **verbatim**, oldest first, appended below. Nothing is ever
+> edited or deleted once it lands here.
+>
+> Read this when you need to know *why* something was done a particular way and `DECISIONS.md`
+> doesn't carry the working. Otherwise you don't need this file.
+
+---

@@ -1,7 +1,10 @@
 # Orchestration State
 
 > Single-owner cursor for `/orchestrate`. Only the orchestration home branch may edit the sections
-> below; a feature branch must never touch this file.
+> below; a feature branch must never touch this file. **Hard budget: ~150 lines.** Every tick reads
+> this file first, so its cost is per-tick and compounding — keep it to the cursor, not a history.
+> Older tick-log entries move to `HISTORY.md` (verbatim, append-only, never read by a tick) per
+> PLAYBOOK step 7. `DECISIONS.md` is separate and is never compacted.
 
 ## Cursor
 - **Project:** {{ project_name }}
@@ -19,4 +22,6 @@
 (nothing pending)
 
 ## Tick log
+> Keep only the last 2-3 ticks here. When adding a new entry would push this file over budget, move
+> the oldest entries to `HISTORY.md` verbatim (see that file's header) before writing the new one.
 (no ticks yet)

@@ -111,6 +111,13 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
 7. **Write state back:** comment progress on the Issue; update `STATE.md`'s cursor/next-action only
    when on the orchestration home branch, never on a feature branch; append to `DECISIONS.md` if a
    decision was made.
+   **Enforce `STATE.md`'s line budget as part of this same write-back.** Before appending this
+   tick's log entry, check the file's length: if adding the new entry would push it past the budget
+   stated at the top of `STATE.md`, move the oldest Tick log entries to `HISTORY.md` first —
+   verbatim, appended in order, nothing summarized or dropped — then write the new entry. This is
+   not optional cleanup: skip it once and the file silently regrows past budget on the next tick,
+   which is exactly the failure mode this rule exists to prevent. `DECISIONS.md` is never rolled or
+   summarized by this step.
    **Do not open a PR from the orchestration home branch to `{{ default_branch }}`.** If the repo has
    GitHub's "Automatically delete head branches" enabled — and it is worth enabling, it is the fix for
    stray merged branches piling up — then merging that PR *deletes the home branch*, even when merged
