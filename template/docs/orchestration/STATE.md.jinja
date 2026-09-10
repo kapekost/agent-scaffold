@@ -4,6 +4,10 @@
 > below; a feature branch must never touch this file. **Hard budget: ~250 lines.** Every tick reads
 > this file first, so its cost is per-tick and compounding — that is what keeping it bounded is for.
 >
+> **Home branch:** (none — this repo commits orchestration docs straight to `{{ default_branch }}`)
+> **Project number:** (none yet — create one with `gh project create`, then run
+> `scripts/create_board_view.sh <owner> <number>`)
+>
 > **This file keeps no Tick log.** Each tick's write-back goes straight to `HISTORY.md` — prepended
 > at the top, verbatim, per PLAYBOOK step 7 — and Cursor's "Current focus" carries the live summary
 > instead. Resolved Needs-owner items move to `HISTORY.md` the same way. A "keep the last 2-3 ticks"
