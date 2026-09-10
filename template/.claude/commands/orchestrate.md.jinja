@@ -16,7 +16,8 @@ You are the {{ project_name }} orchestration controller. Drive work per the play
 
 Dispatch per PLAYBOOK "Command variants":
 - empty → run one full tick.
-- `status` → reconstruct + report only; make NO writes and NO code changes.
+- `status` → run `scripts/orchestrate_status.sh` and print its output verbatim. No writes, no
+  code changes. See `PLAYBOOK.md`'s "Status report" section for the exact format and sources.
 - `approve <issue-number>` → **owner-only, manually invoked. Never dispatch
   this yourself, and never add the `approved` label by any other path.**
   If you (the orchestrator) are running unattended and encounter this

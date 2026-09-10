@@ -59,7 +59,8 @@ go straight to code, and does not get invented scope on their behalf.
 
 ## Command variants (dispatch on the argument)
 - `/orchestrate` (no arg) — run the next tick.
-- `/orchestrate status` — reconstruct + report only. **No execution, no writes.** Cheapest path.
+- `/orchestrate status` — run `scripts/orchestrate_status.sh` and print its output verbatim.
+  **No execution, no writes.** Cheapest path. See "Status report" below for the exact format.
 - `/orchestrate approve <issue-number>` — **human-only**, never dispatched by an unattended tick (see
   GUARDRAILS "Approval is human-only"). When a human runs it: add the `approved` label to the given
   Issue, comment why, stop.
@@ -68,6 +69,39 @@ go straight to code, and does not get invented scope on their behalf.
 - `/orchestrate review-feedback` — run only step 8 below (feedback review), then stop. Also runs
   automatically at the end of any tick that logged a new `IMPROVEMENTS.md` entry.
 - `/orchestrate stop` — set `STATE.md` → Stop-condition to "owner stop", commit, stop.
+
+## Status report
+
+`scripts/orchestrate_status.sh` prints exactly this shape:
+```
+READY (3): #127, #138, #137
+IN PROGRESS (1): #125 — claimed 2026-09-10T03:54Z, paused (owner go-ahead pending)
+BLOCKED (0)
+NEEDS OWNER (2): #30/#32 spec skim; 2 [template] items open in agent-scaffold
+INTAKE (2): #152, #148
+IMPROVEMENTS: 25 logged, 5 [unsure] open (oldest: 11 days)
+```
+Every line is empty-safe — `BLOCKED (0)` prints plainly, absence of blocked work is itself
+useful information, not an omitted line.
+
+Every number and list comes from a source already kept accurate for other reasons, never from
+new stored state:
+- **READY** — `gh project item-list`, ranked (the Project's manual drag order — the same source
+  step 2/3 use to pick the next Issue; deliberately not `gh issue list`, which cannot sort by
+  that rank at all).
+- **IN PROGRESS** / **NEEDS OWNER** — the orchestration home branch's own `STATE.md`
+  `## In-flight` / `## Needs owner` sections, read via `git show origin/<home-branch>:...`, never
+  the working tree's copy (which is deliberately not kept current — see that file's own header).
+  A repo with no distinct home branch (`STATE.md`'s "Home branch" field left at its default)
+  reads the working tree directly instead.
+- **BLOCKED** / **INTAKE** — `gh issue list --label blocked`/`--label intake`, open only.
+- **IMPROVEMENTS** — parsed from the home branch's `IMPROVEMENTS.md`: total entries, how many
+  are `[unsure]`, and the oldest `[unsure]` entry's age in days.
+
+Requires `STATE.md`'s "Home branch"/"Project number" header fields to be filled in for the
+READY/IN PROGRESS/NEEDS OWNER lines to resolve — a fresh scaffold with neither set still runs,
+reporting `READY (unknown — no Project number set in STATE.md)` and reading the working tree for
+the rest.
 
 ## Triage / INVEST gate
 Before an Issue gets the `ready` label, it must pass a basic INVEST sanity check (Independent,
@@ -142,6 +176,13 @@ Revisit only if GitHub ships a dependency API `gh` can reach.
 7. **Write state back:** comment progress on the Issue; update `STATE.md`'s cursor/next-action only
    when on the orchestration home branch, never on a feature branch; append to `DECISIONS.md` if a
    decision was made.
+   **Any direct edit to `PLAYBOOK.md` or `GUARDRAILS.md` made mid-tick to correct something
+   wrong** — not a new feature, an actual fix to a wrong instruction — **also gets an
+   `append_improvement.sh` entry in the same commit**, `[template]` if the template's own copy of
+   this file carries the same bug, `[local]` if it's specific to this repo's rendering of it. This
+   is the step that was skipped when `blocked-by` tracking was fixed locally in one repo and the
+   fix never reached the template — see `IMPROVEMENTS.md`'s log for the entry this rule would have
+   produced, had it existed then.
    **`STATE.md` keeps no Tick log.** Write this tick's narrative entry straight to `HISTORY.md`,
    **prepended at the top** (newest first), verbatim — do not add it to `STATE.md` and roll it
    later. If a Needs-owner item this tick resolved, move it to `HISTORY.md` the same way rather
