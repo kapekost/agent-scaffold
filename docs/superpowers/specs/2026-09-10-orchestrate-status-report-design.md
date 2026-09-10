@@ -92,8 +92,10 @@ absence of blocked work is itself useful information).
 
 ### 2. Where each line comes from
 
-- **READY** — `gh issue list --label ready --state open`, ordered by the Project's manual rank
-  (same source PLAYBOOK step 3 already uses to pick the next Issue).
+- **READY** — `gh project item-list <project-number> --owner <owner> --query "status:Todo
+  label:ready"`, which returns items in the Project's actual manual rank order (same source
+  PLAYBOOK step 2/3 already use to pick the next Issue — see PR #3, merged the same day this spec
+  was written: `gh issue list` was originally assumed to do this and does not, at all).
 - **IN PROGRESS** — the orchestration home branch's own `STATE.md` `## In-flight` section,
   verbatim (claim timestamp + note), not the working tree's copy.
 - **BLOCKED** — `gh issue list --label blocked --state open`.
