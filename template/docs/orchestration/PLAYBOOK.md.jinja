@@ -99,9 +99,12 @@ new stored state:
   are `[unsure]`, and the oldest `[unsure]` entry's age in days.
 
 Requires `STATE.md`'s "Home branch"/"Project number" header fields to be filled in for the
-READY/IN PROGRESS/NEEDS OWNER lines to resolve — a fresh scaffold with neither set still runs,
-reporting `READY (unknown — no Project number set in STATE.md)` and reading the working tree for
-the rest.
+READY/IN PROGRESS/NEEDS OWNER/IMPROVEMENTS lines to resolve against the home branch — a fresh
+scaffold with neither set still runs, reporting `READY (unknown — no Project number set in
+STATE.md)` and reading the working tree for the rest (IMPROVEMENTS included — it follows the same
+home-branch switch as IN PROGRESS/NEEDS OWNER). A third field, `**Project owner:**`, defaults to
+`@me` (the authenticated `gh` user) if left at its placeholder — set it explicitly only when the
+Project belongs to a different login or an org.
 
 ## Triage / INVEST gate
 Before an Issue gets the `ready` label, it must pass a basic INVEST sanity check (Independent,

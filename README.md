@@ -57,6 +57,7 @@ scripts/sync_labels.sh --dry-run   # preview without touching GitHub
 ```bash
 bash tests/test_copier_generate.sh
 bash tests/test_improvements_scripts.sh
+bash tests/test_orchestrate_status.sh
 bash tests/test_sync_labels.sh
 bash tests/test_copier_update.sh
 ```

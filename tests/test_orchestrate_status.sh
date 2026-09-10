@@ -39,8 +39,8 @@ state_doc='# Orchestration State
 - **Project:** Foo
 
 ## In-flight
-- **#125** — claimed 2026-09-10T03:54:12Z, **paused** (owner-requested checkpoint for a laptop
-  restart, not abandoned).
+- **#125** — claimed 2026-09-10T03:54:12Z, **paused**
+  (owner-requested, not abandoned).
 
 ## Needs owner
 (nothing pending)
@@ -55,11 +55,30 @@ assert_eq "$(count_top_bullets "$needs_owner")" "0"
 # --- summarize_bullets: joins wrapped continuation lines, one summary per bullet ---
 
 summary="$(summarize_bullets "$in_flight")"
-assert_eq "$summary" "**#125** — claimed 2026-09-10T03:54:12Z, **paused** (owner-requested checkpoint for a laptop restart, not abandoned)."
+assert_eq "$summary" "**#125** — claimed 2026-09-10T03:54:12Z, **paused** (owner-requested, not abandoned)."
 
 multi='- first item, short
 - second item, also short'
 assert_eq "$(summarize_bullets "$multi")" "first item, short; second item, also short"
+
+# --- summarize_bullets: per-bullet truncation at 110 chars (fix for the
+# 572-char single line a real STATE.md entry produced) ---
+
+long_bullet='- **#130** — claimed 2026-09-10T04:00:00Z, **blocked** (waiting on upstream API access grant
+  that has been pending for several days now with no clear resolution timeline in sight at all).'
+long_summary="$(summarize_bullets "$long_bullet")"
+assert_eq "${#long_summary}" "110"
+assert_eq "$long_summary" "**#130** — claimed 2026-09-10T04:00:00Z, **blocked** (waiting on upstream API access grant that has been pend…"
+
+short_bullet='- short and under the limit'
+assert_eq "$(summarize_bullets "$short_bullet")" "short and under the limit"
+
+# A long bullet alongside a short one: only the long one is truncated, the
+# short one is untouched (truncation is per-bullet, not on the joined string).
+mixed="${long_bullet}
+- short one"
+mixed_summary="$(summarize_bullets "$mixed")"
+assert_eq "$mixed_summary" "**#130** — claimed 2026-09-10T04:00:00Z, **blocked** (waiting on upstream API access grant that has been pend…; short one"
 
 # --- parse_improvements ---
 
@@ -95,6 +114,58 @@ if ! [[ "$older" =~ ^[0-9]+$ ]]; then
 fi
 if (( older <= newer )); then
   echo "FAIL: expected days_since(2020-01-01) > days_since(today), got $older vs $newer" >&2
+  fail=1
+fi
+
+# --- end-to-end: main() from a subdirectory, no gh remote --------------------
+# Covers fix #1 (cwd-relative paths break the script outside repo root) and
+# fix #3 (gh failures report "unknown", not a false "(0)") together, by
+# actually invoking gh and letting it fail (a real integration test, not a
+# pure-function one).
+
+e2e_tmp="$(mktemp -d)"
+mkdir -p "$e2e_tmp/docs/orchestration" "$e2e_tmp/subdir"
+cat > "$e2e_tmp/docs/orchestration/STATE.md" << 'STATEEOF'
+# Orchestration State
+
+> **Home branch:** (none — this repo commits orchestration docs straight to `main`)
+> **Project number:** (none yet — create one with `gh project create`)
+> **Project owner:** (defaults to `@me`, the authenticated `gh` user)
+
+## Cursor
+- **Project:** Test
+
+## In-flight
+(no branches in flight)
+
+## Needs owner
+(nothing pending)
+STATEEOF
+cat > "$e2e_tmp/docs/orchestration/IMPROVEMENTS.md" << 'IMPEOF'
+# Improvements Log
+
+<!-- last-reviewed-count: 0 -->
+
+## Log
+IMPEOF
+(cd "$e2e_tmp" && git init -q .)
+e2e_exit=0
+# `|| e2e_exit=$?` (not a bare `e2e_exit=$?` on the next line) so a non-zero
+# exit from the script under test doesn't itself trip this test file's own
+# `set -e` before the exit status can be inspected below.
+e2e_output="$(cd "$e2e_tmp/subdir" && bash "$root/template/scripts/orchestrate_status.sh" 2>&1)" || e2e_exit=$?
+rm -rf "$e2e_tmp"
+
+if [[ "$e2e_exit" -ne 0 ]]; then
+  echo "FAIL: end-to-end run from subdirectory exited $e2e_exit, expected 0. Output: $e2e_output" >&2
+  fail=1
+fi
+if ! grep -q "READY (unknown" <<<"$e2e_output"; then
+  echo "FAIL: expected READY (unknown ...) with no project number set, got: $e2e_output" >&2
+  fail=1
+fi
+if ! grep -qE "^BLOCKED \(unknown" <<<"$e2e_output"; then
+  echo "FAIL: expected BLOCKED (unknown ...) with no gh remote, got: $e2e_output" >&2
   fail=1
 fi
 

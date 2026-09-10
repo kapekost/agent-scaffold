@@ -10,9 +10,9 @@ set -euo pipefail
 #
 # Usage: orchestrate_status.sh [--owner OWNER]
 #
-# Reads docs/orchestration/STATE.md.jinja's "Home branch"/"Project number"
-# header fields from the working tree first (cheap, no git show needed),
-# then re-reads the live Cursor/In-flight/Needs-owner/IMPROVEMENTS content
+# Reads docs/orchestration/STATE.md's "Home branch"/"Project number"/"Project
+# owner" header fields from the working tree first (cheap, no git show
+# needed), then re-reads the live In-flight/Needs-owner/IMPROVEMENTS content
 # from that home branch if one is set, or the working tree otherwise.
 
 # --- pure parsing functions (no gh, no network; unit-tested directly) ---
@@ -23,6 +23,15 @@ parse_home_branch() {
 
 parse_project_number() {
   grep -m1 -oE '\*\*Project number:\*\* [0-9]+' <<<"$1" | grep -oE '[0-9]+' || true
+}
+
+parse_project_owner() {
+  # Requires a login-shaped token (or `@me`) right after the field, not
+  # merely "any non-space run" -- the unfilled STATE.md.jinja placeholder
+  # ("(defaults to `@me`, the authenticated `gh` user ...)") starts with a
+  # bare "(defaults", which a plain [^ ]+ would wrongly capture as a
+  # configured owner and defeat the @me fallback in main().
+  grep -m1 -oE '\*\*Project owner:\*\* @?[A-Za-z0-9][A-Za-z0-9_.-]*' <<<"$1" | sed -E 's/.*\*\* //' || true
 }
 
 # Extracts the body between "## <heading>" and the next "## " heading (or
@@ -44,8 +53,20 @@ count_top_bullets() {
 # string (undoing the source markdown's hard-wrapping), then joins multiple
 # bullets with "; ". This is a glance aid, not a full-fidelity copy --
 # STATE.md itself is still the place to read the whole entry.
+#
+# Each individual bullet's joined text is then capped at 110 characters
+# (109 chars of content plus an appended "…" when truncated -- a bullet
+# already <=110 chars is left untouched) so a single long entry can't blow
+# out the whole report line; capped per-bullet, not on the joined string as
+# a whole, so a long neighbor doesn't unfairly clip short bullets sharing
+# the line. Truncation happens here in bash (not inside the awk step above)
+# because this repo's awk (macOS's BSD/one-true-awk) measures `length()` in
+# bytes, not UTF-8 characters, and bullet text can contain multi-byte
+# characters like em dashes -- bash's `${#s}` is locale-aware and correct
+# for that under this repo's UTF-8 locale.
 summarize_bullets() {
-  awk '
+  local raw
+  raw="$(awk '
     /^- / {
       if (buf != "") { out = (out == "" ? buf : out "; " buf) }
       buf = $0
@@ -62,7 +83,24 @@ summarize_bullets() {
       if (buf != "") { out = (out == "" ? buf : out "; " buf) }
       print out
     }
-  ' <<<"$1"
+  ' <<<"$1")"
+
+  local remaining="$raw" bullet result=""
+  while [[ "$remaining" == *"; "* ]]; do
+    bullet="${remaining%%; *}"
+    remaining="${remaining#*; }"
+    if [[ ${#bullet} -gt 110 ]]; then
+      bullet="${bullet:0:109}…"
+    fi
+    result="${result:+${result}; }${bullet}"
+  done
+  bullet="$remaining"
+  if [[ ${#bullet} -gt 110 ]]; then
+    bullet="${bullet:0:109}…"
+  fi
+  result="${result:+${result}; }${bullet}"
+
+  printf '%s\n' "$result"
 }
 
 # Prints "<total>|<unsure_count>|<oldest_unsure_date_or_empty>".
@@ -70,8 +108,8 @@ parse_improvements() {
   local content="$1" total unsure oldest
   total="$(grep -cE '^- \[(local|template|unsure)\] [0-9]{4}-[0-9]{2}-[0-9]{2}:' <<<"$content" 2>/dev/null || true)"
   unsure="$(grep -cE '^- \[unsure\] [0-9]{4}-[0-9]{2}-[0-9]{2}:' <<<"$content" 2>/dev/null || true)"
-  oldest="$(grep -m1 -E '^- \[unsure\] [0-9]{4}-[0-9]{2}-[0-9]{2}:' <<<"$content" 2>/dev/null \
-    | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)"
+  oldest="$(grep -E '^- \[unsure\] [0-9]{4}-[0-9]{2}-[0-9]{2}:' <<<"$content" 2>/dev/null \
+    | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | sort | head -1 || true)"
   printf '%s|%s|%s\n' "${total:-0}" "${unsure:-0}" "${oldest:-}"
 }
 
@@ -92,9 +130,17 @@ days_since() {
 # $1: label. Prints "<label-upper> (<n>): #a, #b, ..." or "<label-upper> (0)".
 issue_line() {
   local label="$1" heading="$2"
-  local nums
-  nums="$(gh issue list --label "$label" --state open --json number \
-    --jq '[.[].number] | map("#" + (. | tostring)) | join(", ")' 2>/dev/null || echo "")"
+  local nums gh_exit=0
+  # `|| gh_exit=$?` (rather than a bare `gh_exit=$?` on the next line) is
+  # required so a failing `gh` doesn't trip `set -e` before we get a chance
+  # to inspect its exit status -- a plain assignment's command substitution
+  # failing is itself a simple-command failure under `set -e`.
+  nums="$(gh issue list --label "$label" --state open --limit 100 --json number \
+    --jq '[.[].number] | map("#" + (. | tostring)) | join(", ")' 2>/dev/null)" || gh_exit=$?
+  if [[ "$gh_exit" -ne 0 ]]; then
+    echo "${heading} (unknown — gh issue list failed, check auth/remote)"
+    return
+  fi
   local count=0
   [[ -n "$nums" ]] && count="$(tr ',' '\n' <<<"$nums" | wc -l | tr -d ' ')"
   if [[ "$count" -eq 0 ]]; then
@@ -126,16 +172,23 @@ ready_line() {
 }
 
 main() {
-  local owner="@me"
+  local owner=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --owner) owner="$2"; shift 2 ;;
-      *) echo "error: unknown argument $1" >&2; return 2 ;;
+      --owner) owner="${2:?Usage: orchestrate_status.sh [--owner OWNER]}"; shift 2 ;;
+      *) echo "Usage: orchestrate_status.sh [--owner OWNER]" >&2; echo "error: unknown argument $1" >&2; return 2 ;;
     esac
   done
 
-  local state_path="docs/orchestration/STATE.md"
-  local improvements_path="docs/orchestration/IMPROVEMENTS.md"
+  local root; root="$(git rev-parse --show-toplevel)"
+  # git-show below needs repo-relative paths (git rejects an absolute
+  # rev:path); the *_path variables stay absolute for the plain `cat` reads
+  # below so those work regardless of the caller's cwd (fix for cwd-relative
+  # paths breaking when invoked from a subdirectory).
+  local state_rel="docs/orchestration/STATE.md"
+  local improvements_rel="docs/orchestration/IMPROVEMENTS.md"
+  local state_path="${root}/${state_rel}"
+  local improvements_path="${root}/${improvements_rel}"
   local working_tree_state
   working_tree_state="$(cat "$state_path")"
 
@@ -143,10 +196,25 @@ main() {
   home_branch="$(parse_home_branch "$working_tree_state")"
   project_number="$(parse_project_number "$working_tree_state")"
 
+  # Owner precedence: explicit --owner flag (highest) > STATE.md's
+  # "Project owner" field > @me default (lowest).
+  if [[ -z "$owner" ]]; then
+    local configured_owner
+    configured_owner="$(parse_project_owner "$working_tree_state")"
+    owner="${configured_owner:-@me}"
+  fi
+
   local state_content improvements_content
   if [[ -n "$home_branch" ]]; then
-    state_content="$(git show "origin/${home_branch}:${state_path}")"
-    improvements_content="$(git show "origin/${home_branch}:${improvements_path}")"
+    git fetch --quiet origin "$home_branch" 2>/dev/null || true
+    state_content="$(git show "origin/${home_branch}:${state_rel}" 2>/dev/null)" || {
+      echo "error: could not read ${state_rel} from origin/${home_branch} — check STATE.md's Home branch field and that the branch exists on origin" >&2
+      return 1
+    }
+    improvements_content="$(git show "origin/${home_branch}:${improvements_rel}" 2>/dev/null)" || {
+      echo "error: could not read ${improvements_rel} from origin/${home_branch}" >&2
+      return 1
+    }
   else
     state_content="$working_tree_state"
     improvements_content="$(cat "$improvements_path")"

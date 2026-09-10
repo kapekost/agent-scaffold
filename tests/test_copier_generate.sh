@@ -68,6 +68,7 @@ assert_file "scripts/append_improvement.sh"
 assert_file "scripts/improvements_since_cursor.sh"
 assert_file "scripts/advance_improvements_cursor.sh"
 assert_file "scripts/sync_labels.sh"
+assert_file "scripts/orchestrate_status.sh"
 
 assert_file ".claude/settings.json"
 assert_file ".mcp.json.example"
