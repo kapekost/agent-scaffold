@@ -18,7 +18,7 @@ set -euo pipefail
 # --- pure parsing functions (no gh, no network; unit-tested directly) ---
 
 parse_home_branch() {
-  grep -m1 -oE '\*\*Home branch:\*\* `[^`]+`' <<<"$1" | sed -E 's/.*`([^`]+)`.*/\1/'
+  grep -m1 -oE '\*\*Home branch:\*\* `[^`]+`' <<<"$1" | sed -E 's/.*`([^`]+)`.*/\1/' || true
 }
 
 parse_project_number() {
