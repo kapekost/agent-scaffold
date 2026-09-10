@@ -92,6 +92,11 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
    Tell the subagent to log friction as it goes: whenever it hits something worth noting (a wrong
    guardrail, a missing tool, an outdated doc), run
    `scripts/append_improvement.sh <local|template|unsure> "<note>"` inline rather than waiting.
+   **If a dispatched subagent dies mid-task** (an infra error, a dropped connection, a rejected call
+   that may have started anyway) **before re-dispatching, check for salvageable work first** —
+   `git worktree list` for a worktree it may have created, and inspect it for uncommitted or
+   unpushed commits. Re-dispatching blind risks either discarding real work or producing a silent
+   duplicate of it. Only re-dispatch clean once you've confirmed there's nothing to recover.
 5. **Gate:** run the task's verification commands; then `superpowers:requesting-code-review` (spec +
    code quality). At a deploy/milestone checkpoint, also run `/security-review`.
 6. **PR:** open a PR referencing the Issue (`Closes #N`), then run
@@ -111,13 +116,15 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
 7. **Write state back:** comment progress on the Issue; update `STATE.md`'s cursor/next-action only
    when on the orchestration home branch, never on a feature branch; append to `DECISIONS.md` if a
    decision was made.
-   **Enforce `STATE.md`'s line budget as part of this same write-back.** Before appending this
-   tick's log entry, check the file's length: if adding the new entry would push it past the budget
-   stated at the top of `STATE.md`, move the oldest Tick log entries to `HISTORY.md` first —
-   verbatim, appended in order, nothing summarized or dropped — then write the new entry. This is
-   not optional cleanup: skip it once and the file silently regrows past budget on the next tick,
-   which is exactly the failure mode this rule exists to prevent. `DECISIONS.md` is never rolled or
-   summarized by this step.
+   **`STATE.md` keeps no Tick log.** Write this tick's narrative entry straight to `HISTORY.md`,
+   **prepended at the top** (newest first), verbatim — do not add it to `STATE.md` and roll it
+   later. If a Needs-owner item this tick resolved, move it to `HISTORY.md` the same way rather
+   than leaving a struck-through remnant in `STATE.md`. A "keep the last N ticks" rule regrows the
+   same way a full tick log does, so keep none. `DECISIONS.md` is never rolled or summarized by
+   this step.
+   **Before committing, re-check `STATE.md`'s line budget stated at its own top** — Cursor and
+   Needs-owner are the only sections that can grow it, so if either has, tighten it in the same
+   commit rather than letting it ride.
    **Do not open a PR from the orchestration home branch to `{{ default_branch }}`.** If the repo has
    GitHub's "Automatically delete head branches" enabled — and it is worth enabling, it is the fix for
    stray merged branches piling up — then merging that PR *deletes the home branch*, even when merged
