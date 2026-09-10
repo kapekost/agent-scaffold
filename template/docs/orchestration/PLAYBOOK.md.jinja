@@ -12,6 +12,24 @@ actively driving feature requests into yet, doesn't need Issues, a ranked board,
 clarifying-question ceremony: just do the work directly. Turn this on once a product owner starts
 bringing feature requests you'd otherwise have to remember and sequence yourself.
 
+## Project board setup (one-time per repo)
+
+A GitHub Projects v2 board is where the owner ranks work (drag order = priority — see step 2)
+and, once created, gives a real Kanban view for free: run
+`scripts/create_board_view.sh <owner> <project-number>` once, after the Project itself exists
+(`gh project create`), and it adds a Board-layout view. No further configuration is needed — a
+freshly created Board-layout view groups by the `Status` single-select field automatically, with
+real Todo/In Progress/Done columns, even though the public GraphQL API has no way to *set* that
+grouping explicitly (`ProjectV2ViewConfigurationInput` only exposes `visibleFieldIds`; there is no
+group-by input). Verified empirically 2026-09-10, not assumed from docs. The script is idempotent
+— safe to re-run, it skips creating a duplicate if a board view already exists.
+
+Note what this does *not* solve on its own: the `Status` field's `Todo`/`Done` values already
+track `state:OPEN`/`state:CLOSED` via GitHub's own built-in automation, but nothing yet writes
+`In Progress` when a tick actually claims an Issue (see `STATE.md`'s `## In-flight` section for
+where that claim already lives) — so today the board shows two real columns and one empty one.
+Wiring that write is tracked separately; it needs its own design, not a same-file follow-on here.
+
 ## Feature intake (product owner → Issues)
 
 A high-level feature request from the product owner — in conversation, not yet an Issue — does not
@@ -59,16 +77,24 @@ fails — too vague, too large for its stated effort, or not independently actio
 Feature intake starts labeled `intake`, not `needs-clarification` — see that section above for the
 distinction.
 
-Issue dependencies (`blocked-by`) are tracked via GitHub's native issue-dependency relationship,
-not a label: set it through the Issue UI's "Blockers" panel, since there is no plain `gh issue`
-subcommand for it (it's a GraphQL-only feature, reachable via `gh api graphql` if scripting it
-later). Until that's automated, check an Issue's blocked status by reading its "Blocked by" panel
-in the UI (or `gh api graphql` for the same data) before treating it as pickable in step 3 below.
+Issue dependencies are tracked with the **`blocked` label**, and the blocking Issue is named in
+the blocked Issue's body. An earlier version of this file mandated GitHub's native
+issue-dependency relationship instead and explicitly forbade a label — that instruction never
+worked: the GraphQL field it points at does not exist on this API
+(`issueDependenciesBlockedBy` → `undefinedField`), so a check written against it would always
+silently pass. The label is what practice actually uses, so the label is what the runner checks.
+Revisit only if GitHub ships a dependency API `gh` can reach.
 
 ## The tick (for `/orchestrate` with no arg)
 1. **Read** `STATE.md`, `GUARDRAILS.md`, `DECISIONS.md`. Do not read source files yet.
-2. **Reconcile reality:** `git status`, `gh pr list`, `gh issue list --label ready --state open`
-   (sorted by the Project's manual rank). If reality diverged from `STATE.md`, correct `STATE.md` and
+2. **Reconcile reality:** `git status`, `gh pr list`, and `gh project item-list <project-number>
+   --owner "@me" --query "status:Todo label:ready"` for the ranked `ready` queue — **not** `gh
+   issue list`, which has no notion of the Project's manual rank at all (no such sort exists in
+   its flags) and was wrongly documented here as if it did. `gh project item-list`'s own item
+   order already *is* the board's manual rank — confirmed empirically: an item dragged to a new
+   position in the Todo column of a Board-layout view (see "Project board setup" below) moves in
+   this same output, immediately, because both read the one underlying position GitHub stores per
+   item. If reality diverged from `STATE.md`, correct `STATE.md` and
    continue. **Also sweep for open Issues carrying no state label at all** — e.g.
    `gh issue list --state open --json number,title,labels` filtered to those with none of `ready` /
    `intake` / `needs-clarification`. A label-filtered query cannot report what it never matches, so
@@ -80,7 +106,7 @@ in the UI (or `gh api graphql` for the same data) before treating it as pickable
    A comment sitting unanswered across a tick boundary is a bug in the loop, not something to defer.
 3. **Pick the next action.** If any Issue is labeled `intake`, resolve the highest-ranked one first
    via the Feature intake flow above, then re-run this step. Otherwise: highest-ranked open Issue
-   with the `ready` label and no unresolved `blocked-by` dependency. Then:
+   with the `ready` label and without the `blocked` label. Then:
    - If it has no linked plan and is `effort:M` or larger → run the `/orchestrate plan` flow and stop.
    - If it is `effort:L`/`XL` and has no sub-Issues yet → split it per GUARDRAILS "Task sizing" and stop.
    - If it is **destructive** (per GUARDRAILS) and lacks the `approved` label → skip to the next ready
