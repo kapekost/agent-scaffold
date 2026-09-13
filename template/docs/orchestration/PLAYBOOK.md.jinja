@@ -165,7 +165,9 @@ Revisit only if GitHub ships a dependency API `gh` can reach.
      Issue; if none, stop + notify.
    - Else → execute.
 4. **Execute** via `superpowers:subagent-driven-development`. Lean: dispatch one subagent per task; it
-   reads only the Issue + its plan doc + the named files, never the whole tree. If context bloats
+   reads only the Issue + its plan doc + the named files, never the whole tree. **Pick the dispatch
+   model per task per "Model tiering for dispatched work" below** — this is a per-dispatch decision,
+   not a default left to whatever the controller happens to be running. If context bloats
    mid-task per GUARDRAILS, checkpoint and hand off to a fresh subagent rather than pushing through.
    Tell the subagent to log friction as it goes: whenever it hits something worth noting (a wrong
    guardrail, a missing tool, an outdated doc), run
@@ -230,6 +232,40 @@ Revisit only if GitHub ships a dependency API `gh` can reach.
    nothing left to do unattended — call `PushNotification` with a one-line summary. Skip it for routine
    ticks that ended cleanly with more `ready` work still queued; a notification for every tick is worse
    than none.
+
+## Model tiering for dispatched work
+
+Route dispatched work to a model tier — stronger for the expensive-to-get-wrong work, cheaper for
+mechanical work — rather than every subagent running on whatever the controller happens to be on.
+The `Agent` tool's per-dispatch `model` override (`opus`/`sonnet`/`haiku`/`fable`) already does
+this; this section is the policy for when to use which.
+
+**Stronger model:**
+- Planning (`superpowers:writing-plans`, spec writing) — a bad plan is paid for by every task
+  executed against it.
+- Anything GUARDRAILS classifies as **destructive** — auth, session, secret or token handling;
+  schema migrations.
+- **Code review** — the last gate before merge.
+
+**Cheaper model:**
+- Executing an `effort:S` ticket that arrives with a scoped file list and named tests — low
+  ambiguity, cheap to redo if imperfect.
+
+**Precedence: destructive beats effort size, always.** An `effort:S` ticket that touches auth,
+sessions, secrets, tokens or a migration takes the stronger tier regardless of size — size is a
+proxy for ambiguity, not for stakes, and where the two disagree stakes win.
+
+**The dispatch default is pinned, not inherited** from whatever model the controller session
+happens to be running interactively. The controller's model is a personal editing preference; the
+dispatch default governs unattended, high-stakes work that can run on a schedule — coupling them
+means changing an editor setting silently changes what runs sensitive work at 3am. Pin `sonnet` as
+the dispatch default for the stronger tier and `haiku` for the cheaper tier, per repo in
+`DECISIONS.md` if a repo's owner wants different defaults, and revisit against actual outcomes — if
+the cheap tier starts producing work the review gate catches, the tier boundary is wrong, not the
+review.
+
+**`model` is ignored for `subagent_type: "fork"`** — a fork always inherits the parent's model, so
+this tiering only applies to the worktree-isolated dispatches Execute already uses.
 
 ## Budget & checkpointing
 Track work against the GUARDRAILS per-tick token budget. When near the limit, finish the current
