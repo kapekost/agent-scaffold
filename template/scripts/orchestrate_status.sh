@@ -155,14 +155,22 @@ issue_line() {
 # spec's Section 2 and the sibling fix in PLAYBOOK.md.jinja's step 2 for
 # why this uses `gh project item-list`, never `gh issue list`, for rank.
 ready_line() {
-  local project="$1" owner="$2" nums count=0
+  local project="$1" owner="$2" nums count=0 gh_exit=0
   if [[ -z "$project" ]]; then
     echo "READY (unknown — no Project number set in STATE.md)"
     return
   fi
+  # `|| gh_exit=$?` (rather than a bare `gh_exit=$?` on the next line) is
+  # required so a failing `gh` doesn't trip `set -e` before we get a chance
+  # to inspect its exit status -- a plain assignment's command substitution
+  # failing is itself a simple-command failure under `set -e`.
   nums="$(gh project item-list "$project" --owner "$owner" --format json --limit 100 \
     --query "status:Todo label:ready" \
-    --jq '[.items[].content.number] | map("#" + (. | tostring)) | join(", ")' 2>/dev/null || echo "")"
+    --jq '[.items[].content.number] | map("#" + (. | tostring)) | join(", ")' 2>/dev/null)" || gh_exit=$?
+  if [[ "$gh_exit" -ne 0 ]]; then
+    echo "READY (unknown — gh project item-list failed, check auth/remote)"
+    return
+  fi
   [[ -n "$nums" ]] && count="$(tr ',' '\n' <<<"$nums" | wc -l | tr -d ' ')"
   if [[ "$count" -eq 0 ]]; then
     echo "READY (0)"

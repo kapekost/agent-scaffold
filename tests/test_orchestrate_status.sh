@@ -169,6 +169,49 @@ if ! grep -qE "^BLOCKED \(unknown" <<<"$e2e_output"; then
   fail=1
 fi
 
+# --- gh project item-list failure: ready_line should report unknown, not (0) ---
+# Tests that when a project number IS set but gh project item-list fails
+# (auth error, no remote, etc.), the output says "unknown" not "(0)".
+
+ready_test_tmp="$(mktemp -d)"
+mkdir -p "$ready_test_tmp/docs/orchestration"
+cat > "$ready_test_tmp/docs/orchestration/STATE.md" << 'STATEEOF'
+# Orchestration State
+
+> **Home branch:** (none — this repo commits orchestration docs straight to `main`)
+> **Project number:** 999
+> **Project owner:** (defaults to `@me`, the authenticated `gh` user)
+
+## Cursor
+- **Project:** Test
+
+## In-flight
+(no branches in flight)
+
+## Needs owner
+(nothing pending)
+STATEEOF
+cat > "$ready_test_tmp/docs/orchestration/IMPROVEMENTS.md" << 'IMPEOF'
+# Improvements Log
+
+<!-- last-reviewed-count: 0 -->
+
+## Log
+IMPEOF
+(cd "$ready_test_tmp" && git init -q .)
+ready_test_exit=0
+ready_test_output="$(cd "$ready_test_tmp" && bash "$root/template/scripts/orchestrate_status.sh" 2>&1)" || ready_test_exit=$?
+rm -rf "$ready_test_tmp"
+
+if [[ "$ready_test_exit" -ne 0 ]]; then
+  echo "FAIL: ready_line test exited $ready_test_exit, expected 0. Output: $ready_test_output" >&2
+  fail=1
+fi
+if ! grep -qE "^READY \(unknown — gh project item-list failed" <<<"$ready_test_output"; then
+  echo "FAIL: expected READY (unknown — gh project item-list failed...) with project number set but no gh remote, got: $ready_test_output" >&2
+  fail=1
+fi
+
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_orchestrate_status.sh"
 else
