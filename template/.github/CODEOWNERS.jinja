@@ -2,6 +2,10 @@
 /.github/ @{{ github_owner }}
 /.claude/ @{{ github_owner }}
 /.mcp.json* @{{ github_owner }}
-
+{% if include_reviewer %}/scripts/post_review.py @{{ github_owner }}
+/scripts/review_input.py @{{ github_owner }}
+/scripts/resolve_review_threads.sh @{{ github_owner }}
+/tests/reviewer/ @{{ github_owner }}
+{% endif %}
 # Add project-specific paths below, e.g.:
 # /src/auth/ @{{ github_owner }}

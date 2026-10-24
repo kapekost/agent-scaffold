@@ -5,6 +5,22 @@ _subdirectory: template
 _envops:
   keep_trailing_newline: true
 
+# Setting _exclude replaces copier's defaults, so they are repeated here.
+_exclude:
+  - "copier.yaml"
+  - "copier.yml"
+  - "~*"
+  - "*.py[co]"
+  - "__pycache__"
+  - ".git"
+  - ".DS_Store"
+  - ".svn"
+  - "{% if not include_reviewer %}.github/workflows/opencode-review.yml{% endif %}"
+  - "{% if not include_reviewer %}scripts/post_review.py{% endif %}"
+  - "{% if not include_reviewer %}scripts/review_input.py{% endif %}"
+  - "{% if not include_reviewer %}scripts/resolve_review_threads.sh{% endif %}"
+  - "{% if not include_reviewer %}tests/reviewer{% endif %}"
+
 project_name:
   type: str
   help: "Human-readable project name (e.g. 'Photo Cull')"
@@ -28,3 +44,25 @@ default_branch:
   type: str
   help: "Default branch name"
   default: "main"
+
+include_reviewer:
+  type: bool
+  help: "Ship the opencode PR reviewer (workflow, scripts, tests)? It needs an OPENROUTER_API_KEY repository secret."
+  default: false
+
+repo_is_public:
+  type: bool
+  help: "Is the repository public? Answer honestly: a private repo rendered as public fails at checkout, and a public one rendered as private keeps an unneeded contents:read token."
+  when: "{{ include_reviewer }}"
+
+reviewer_source_prefixes:
+  type: yaml
+  help: "Paths the reviewer reads first after workflows and scripts, as a YAML list of prefixes (e.g. [\"src/\"])"
+  default: ["src/"]
+  when: "{{ include_reviewer }}"
+
+reviewer_lockfiles:
+  type: yaml
+  help: "Lockfiles the reviewer is not shown when edited in place, as a YAML list of repo-root paths"
+  default: ["package-lock.json"]
+  when: "{{ include_reviewer }}"
