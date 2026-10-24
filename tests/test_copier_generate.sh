@@ -125,6 +125,14 @@ for f in .github/workflows/opencode-review.yml scripts/post_review.py scripts/re
   fi
 done
 
+open_fallback="$(mktemp -d)"
+copier copy --defaults --trust --data project_name="T" --data project_slug="t" --data github_owner="o" \
+  --data include_reviewer=true --data repo_visibility=private --data reviewer_open_model_fallback=true \
+  "$root" "$open_fallback" >/dev/null 2>&1
+[[ "$(grep -c 'open/' "$open_fallback/.github/workflows/opencode-review.yml")" -ge 3 ]] \
+  || { echo "FAIL: reviewer_open_model_fallback=true did not render the open/ fallback" >&2; fail=1; }
+actionlint "$open_fallback/.github/workflows/opencode-review.yml" || { echo "FAIL: actionlint (open fallback)" >&2; fail=1; }
+
 render_reviewer() {  # $1 = public|private, $2 = output dir
   copier copy --defaults --trust \
     --data project_name="Test Project" --data project_slug="test-project" \
@@ -146,8 +154,9 @@ for vis in public private; do
   else
     grep -qF 'persist-credentials: false' "$wf" || { echo "FAIL: private checkout should not persist credentials" >&2; fail=1; }
     ! grep -qF 'repository_owner' "$wf" || { echo "FAIL: private repo should not gate on owner" >&2; fail=1; }
-    ! grep -qF 'open/' "$wf" || { echo "FAIL: private repo must not fall back to models without data_collection deny" >&2; fail=1; }
+    :
   fi
+  ! grep -qF 'open/' "$wf" || { echo "FAIL: the open/ model fallback rendered without being asked for ($vis)" >&2; fail=1; }
   grep -qF 'OPENCODE_DISABLE_PROJECT_CONFIG' "$wf" || { echo "FAIL: project config not disabled ($vis)" >&2; fail=1; }
   grep -qF '"app/"' "$out/scripts/review_input.py" || { echo "FAIL: source prefixes not rendered ($vis)" >&2; fail=1; }
   for s in post_review.py resolve_review_threads.sh; do

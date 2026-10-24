@@ -62,6 +62,15 @@ repo_visibility:
     {% if repo_visibility not in ['public', 'private'] %}Type public or private{% endif %}
   when: "{{ include_reviewer }}"
 
+reviewer_open_model_fallback:
+  type: bool
+  help: >-
+    When no model with data_collection deny answers, retry the same free models without that
+    option so the PR still gets a review. Their providers may keep and train on the code in the
+    diff, so answer yes only if the repo holds nothing you would not publish.
+  default: false
+  when: "{{ include_reviewer }}"
+
 reviewer_source_prefixes:
   type: yaml
   help: "Paths the reviewer reads first after workflows and scripts, as a YAML list of prefixes (e.g. [\"src/\"])"

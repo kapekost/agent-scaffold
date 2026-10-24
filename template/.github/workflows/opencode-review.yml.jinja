@@ -210,7 +210,7 @@ jobs:
           # data_collection deny. A model the endpoint no longer lists is dropped, and a run with
           # none left fails here instead of looking like a provider outage. If the endpoint cannot
           # be read, the list is used as it stands.
-{% endraw %}{% if repo_visibility == 'public' %}{% raw %}          # Last come the same models again under an open/ key, without the privacy option, so a
+{% endraw %}{% if reviewer_open_model_fallback %}{% raw %}          # Last come the same models again under an open/ key, without the privacy option, so a
           # PR still gets a review when no private endpoint answers. Only owner-authored same-repo
           # PRs reach the models; keep this fallback only while the repo holds no private code.
 {% endraw %}{% endif %}{% raw %}          if curl -fsS --retry 2 --max-time 20 https://openrouter.ai/api/v1/models \
@@ -237,11 +237,11 @@ jobs:
           jq --rawfile m "$RUNNER_TEMP/models.txt" \
             '[$m | split("\n")[] | select(length > 0)] as $ids
               | .provider.openrouter.models =
-                ([$ids[] | {(.): {options: {provider: {data_collection: "deny"}}}}] | add){% endraw %}{% if repo_visibility == 'public' %}{% raw %}
+                ([$ids[] | {(.): {options: {provider: {data_collection: "deny"}}}}] | add){% endraw %}{% if reviewer_open_model_fallback %}{% raw %}
                 + ([$ids[] | {("open/" + .): {id: .}}] | add){% endraw %}{% endif %}{% raw %}' \
             "$RUNNER_TEMP/opencode.json" > "$RUNNER_TEMP/opencode.final.json"
           mv "$RUNNER_TEMP/opencode.final.json" "$RUNNER_TEMP/opencode.json"
-{% endraw %}{% if repo_visibility == 'public' %}{% raw %}          sed 's|^|open/|' "$RUNNER_TEMP/models.txt" > "$RUNNER_TEMP/open-models.txt"
+{% endraw %}{% if reviewer_open_model_fallback %}{% raw %}          sed 's|^|open/|' "$RUNNER_TEMP/models.txt" > "$RUNNER_TEMP/open-models.txt"
           cat "$RUNNER_TEMP/open-models.txt" >> "$RUNNER_TEMP/models.txt"
 {% endraw %}{% endif %}{% raw %}          # The model's bash denies any command with a / in it, so it cannot `git show` these
           # itself. Copies from the default branch, not the PR's (renamed so opencode does not
