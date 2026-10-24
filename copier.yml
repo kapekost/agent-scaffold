@@ -5,6 +5,22 @@ _subdirectory: template
 _envops:
   keep_trailing_newline: true
 
+# Setting _exclude replaces copier's defaults, so they are repeated here.
+_exclude:
+  - "copier.yaml"
+  - "copier.yml"
+  - "~*"
+  - "*.py[co]"
+  - "__pycache__"
+  - ".git"
+  - ".DS_Store"
+  - ".svn"
+  - "{% if not include_reviewer %}.github/workflows/opencode-review.yml{% endif %}"
+  - "{% if not include_reviewer %}scripts/post_review.py{% endif %}"
+  - "{% if not include_reviewer %}scripts/review_input.py{% endif %}"
+  - "{% if not include_reviewer %}scripts/resolve_review_threads.sh{% endif %}"
+  - "{% if not include_reviewer %}tests/reviewer{% endif %}"
+
 project_name:
   type: str
   help: "Human-readable project name (e.g. 'Photo Cull')"
@@ -28,3 +44,40 @@ default_branch:
   type: str
   help: "Default branch name"
   default: "main"
+
+include_reviewer:
+  type: bool
+  help: "Ship the opencode PR reviewer (workflow, scripts, tests)? It needs an OPENROUTER_API_KEY repository secret."
+  default: false
+
+repo_visibility:
+  type: str
+  help: >-
+    Type public or private (no default, on purpose). public: only PRs opened by the repo
+    owner's own account are reviewed (this assumes a user-owned repo; for an org the gate never
+    matches) and the model job holds no token. private: the owner gate is dropped, so any
+    same-repo branch author reaches the OPENROUTER_API_KEY and the model, and only
+    data_collection-deny models are used. A private repo marked public fails at checkout.
+  validator: >-
+    {% if repo_visibility not in ['public', 'private'] %}Type public or private{% endif %}
+  when: "{{ include_reviewer }}"
+
+reviewer_source_prefixes:
+  type: yaml
+  help: "Paths the reviewer reads first after workflows and scripts, as a YAML list of prefixes (e.g. [\"src/\"])"
+  default: ["src/"]
+  validator: >-
+    {% if reviewer_source_prefixes is string or reviewer_source_prefixes is not sequence
+       or '' in reviewer_source_prefixes
+       or reviewer_source_prefixes | reject('string') | list | length > 0 %}Give a YAML list of non-empty strings{% endif %}
+  when: "{{ include_reviewer }}"
+
+reviewer_lockfiles:
+  type: yaml
+  help: "Lockfiles the reviewer is not shown when edited in place, as a YAML list of repo-root paths"
+  default: ["package-lock.json"]
+  validator: >-
+    {% if reviewer_lockfiles is string or reviewer_lockfiles is not sequence
+       or '' in reviewer_lockfiles
+       or reviewer_lockfiles | reject('string') | list | length > 0 %}Give a YAML list of non-empty strings{% endif %}
+  when: "{{ include_reviewer }}"

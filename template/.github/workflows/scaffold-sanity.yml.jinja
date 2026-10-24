@@ -48,3 +48,18 @@ jobs:
               exit 1
             fi
           fi
+{% if include_reviewer %}
+  reviewer-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - run: pip install --quiet pytest==9.1.1
+
+      - name: Test the PR reviewer scripts and workflow
+        run: python3 -m pytest tests/reviewer -q
+{% endif %}

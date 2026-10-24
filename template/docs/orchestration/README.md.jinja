@@ -64,3 +64,14 @@ Full detail: `PLAYBOOK.md`'s "The tick" section.
   a sign something broke.
 - **Merge is automatic.** The agent watches CI itself and merges once it's green — you don't
   need to click anything per PR, and there's no one-time setup required.
+{% if include_reviewer %}
+## PR reviewer
+
+`.github/workflows/opencode-review.yml` runs a model over every non-draft PR from a same-repo
+branch and posts one review. It is an extra reviewer, not a gate. It needs a repository secret
+`OPENROUTER_API_KEY` (a dedicated, spend-capped key). The workflow, `scripts/post_review.py`,
+`scripts/review_input.py`, `scripts/resolve_review_threads.sh` and `tests/reviewer/` come from the
+template; change them in the template and run `copier update` rather than editing a copy. The
+checkout's own agent config (`opencode.json`, `.opencode/`, `AGENTS.md`, `CLAUDE.md`) is switched
+off for the model with `OPENCODE_DISABLE_PROJECT_CONFIG`; the files are not deleted.
+{% endif %}

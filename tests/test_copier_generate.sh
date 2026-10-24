@@ -92,7 +92,8 @@ assert_contains ".claude/commands/orchestrate.md" "never auto-merge"
 # template/{{ _copier_conf.answers_file }}.jinja renders to
 # .copier-answers.yml, so that file is counted on both sides — no
 # exclusion needed.
-expected_count="$(find "$root/template" -type f | wc -l | tr -d ' ')"
+expected_count="$(find "$root/template" -type f -not -path '*/tests/reviewer/*' -not -name 'post_review.py' \
+  -not -name 'review_input.py.jinja' -not -name 'resolve_review_threads.sh' -not -name 'opencode-review.yml.jinja' | wc -l | tr -d ' ')"
 actual_count="$(find "$tmp" -type f -not -path '*/.git/*' | wc -l | tr -d ' ')"
 if [[ "$expected_count" != "$actual_count" ]]; then
   echo "FAIL: expected $expected_count generated files, got $actual_count" >&2
@@ -114,6 +115,48 @@ if grep -rn '{{' "$tmp" --include='*' 2>/dev/null | grep -vF '${{' | grep -v '/.
   echo "FAIL: unrendered Jinja expression syntax ({{ }}) found in generated output" >&2
   fail=1
 fi
+
+# The reviewer is opt-in: absent by default, present and testable when asked for.
+for f in .github/workflows/opencode-review.yml scripts/post_review.py scripts/review_input.py \
+         scripts/resolve_review_threads.sh tests/reviewer; do
+  if [[ -e "$tmp/$f" ]]; then
+    echo "FAIL: $f exists although include_reviewer defaults to false" >&2
+    fail=1
+  fi
+done
+
+render_reviewer() {  # $1 = public|private, $2 = output dir
+  copier copy --defaults --trust \
+    --data project_name="Test Project" --data project_slug="test-project" \
+    --data github_owner="testowner" --data include_reviewer=true --data repo_visibility="$1" \
+    --data 'reviewer_source_prefixes=["app/"]' --data 'reviewer_lockfiles=["package-lock.json"]' \
+    "$root" "$2" >/dev/null 2>&1
+}
+for vis in public private; do
+  out="$(mktemp -d)"
+  render_reviewer "$vis" "$out"
+  wf="$out/.github/workflows/opencode-review.yml"
+  [[ -f "$wf" ]] || { echo "FAIL: no reviewer workflow rendered ($vis)" >&2; fail=1; continue; }
+  python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$wf" || { echo "FAIL: $vis workflow is not YAML" >&2; fail=1; }
+  if grep -rn '{%' "$out" | grep -v '/.copier-answers.yml:'; then echo "FAIL: stray Jinja tag ($vis)" >&2; fail=1; fi
+  if grep -rn '{{' "$out" | grep -vF '${{' | grep -v '/.copier-answers.yml:'; then echo "FAIL: stray Jinja expression ($vis)" >&2; fail=1; fi
+  if [[ "$vis" == public ]]; then
+    grep -qF 'permissions: {}' "$wf" || { echo "FAIL: public review job should hold no token scopes" >&2; fail=1; }
+    grep -qF 'repository_owner' "$wf" || { echo "FAIL: public repo should review owner PRs only" >&2; fail=1; }
+  else
+    grep -qF 'persist-credentials: false' "$wf" || { echo "FAIL: private checkout should not persist credentials" >&2; fail=1; }
+    ! grep -qF 'repository_owner' "$wf" || { echo "FAIL: private repo should not gate on owner" >&2; fail=1; }
+    ! grep -qF 'open/' "$wf" || { echo "FAIL: private repo must not fall back to models without data_collection deny" >&2; fail=1; }
+  fi
+  grep -qF 'OPENCODE_DISABLE_PROJECT_CONFIG' "$wf" || { echo "FAIL: project config not disabled ($vis)" >&2; fail=1; }
+  grep -qF '"app/"' "$out/scripts/review_input.py" || { echo "FAIL: source prefixes not rendered ($vis)" >&2; fail=1; }
+  for s in post_review.py resolve_review_threads.sh; do
+    cmp -s "$root/template/scripts/$s" "$out/scripts/$s" || { echo "FAIL: scripts/$s is not byte-identical ($vis)" >&2; fail=1; }
+  done
+  command -v actionlint >/dev/null && { actionlint "$wf" || { echo "FAIL: actionlint ($vis)" >&2; fail=1; }; }
+  (cd "$out" && PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/reviewer -q -p no:cacheprovider >/dev/null 2>&1) \
+    || { echo "FAIL: the shipped reviewer tests fail ($vis)" >&2; fail=1; }
+done
 
 if [[ "$fail" -eq 0 ]]; then
   echo "PASS: test_copier_generate.sh"
