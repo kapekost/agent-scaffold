@@ -126,11 +126,9 @@ for f in .github/workflows/opencode-review.yml scripts/post_review.py scripts/re
 done
 
 render_reviewer() {  # $1 = public|private, $2 = output dir
-  local public=true
-  [[ "$1" == private ]] && public=false
   copier copy --defaults --trust \
     --data project_name="Test Project" --data project_slug="test-project" \
-    --data github_owner="testowner" --data include_reviewer=true --data repo_is_public="$public" \
+    --data github_owner="testowner" --data include_reviewer=true --data repo_visibility="$1" \
     --data 'reviewer_source_prefixes=["app/"]' --data 'reviewer_lockfiles=["package-lock.json"]' \
     "$root" "$2" >/dev/null 2>&1
 }
@@ -148,6 +146,7 @@ for vis in public private; do
   else
     grep -qF 'persist-credentials: false' "$wf" || { echo "FAIL: private checkout should not persist credentials" >&2; fail=1; }
     ! grep -qF 'repository_owner' "$wf" || { echo "FAIL: private repo should not gate on owner" >&2; fail=1; }
+    ! grep -qF 'open/' "$wf" || { echo "FAIL: private repo must not fall back to models without data_collection deny" >&2; fail=1; }
   fi
   grep -qF 'OPENCODE_DISABLE_PROJECT_CONFIG' "$wf" || { echo "FAIL: project config not disabled ($vis)" >&2; fail=1; }
   grep -qF '"app/"' "$out/scripts/review_input.py" || { echo "FAIL: source prefixes not rendered ($vis)" >&2; fail=1; }

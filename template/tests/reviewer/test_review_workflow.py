@@ -21,13 +21,18 @@ def test_generated_config_denies_data_collection_for_every_listed_model(tmp_path
                          capture_output=True, text=True, check=True).stdout
     models = json.loads(out)["provider"]["openrouter"]["models"]
     ids = ["stealth/x-alpha", "cohere/north-mini-code:free", "openrouter/free"]
-    assert list(models) == ids + ["open/" + i for i in ids]
+    with_open = "open/" in TEXT
+    assert list(models) == ids + (["open/" + i for i in ids] if with_open else [])
     for i in ids:
         assert models[i]["options"]["provider"]["data_collection"] == "deny"
-        assert models["open/" + i] == {"id": i}
+        if with_open:
+            assert models["open/" + i] == {"id": i}
 
 
-def test_the_models_repeat_without_privacy_after_all_private_ones_are_tried():
+def test_the_models_repeat_without_privacy_only_where_that_is_acceptable():
+    if "open/" not in TEXT:
+        assert "open-models.txt" not in TEXT
+        return
     assert TEXT.index("sed 's|^|open/|'") < TEXT.index('mapfile -t models < "$RUNNER_TEMP/models.txt"')
     assert '>> "$RUNNER_TEMP/models.txt"' in TEXT
 
