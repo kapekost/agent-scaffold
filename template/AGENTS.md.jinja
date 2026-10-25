@@ -15,6 +15,13 @@ repo actually needs. Start new servers at local scope, promote to project
 scope only once reviewed — never commit a real credential; reference an
 env var instead.
 
+## Code search
+
+`rg` for literals. When `ast-grep` is installed, use it for syntax-aware search and bulk rewrites
+across call sites (porting code between web and mobile, renaming an API, swapping a library). Search
+first, review the matches, run `--rewrite` only on a clean branch and read the diff before committing.
+It may be absent in sandboxes and CI, so nothing may depend on it.
+
 ## Deployment knowledge stays local
 
 If (once this project actually deploys somewhere) `AGENTS.md` grows a
